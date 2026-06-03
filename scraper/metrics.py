@@ -18,6 +18,7 @@ CARGA_DEFAULT = 40.0          # litros por vehiculo si la fuente no lo da
 CRIT_VEH = 50                 # < 50 vehiculos -> critico
 LOW_VEH = 150                 # < 150 -> bajo
 MID_VEH = 400                 # < 400 -> medio ; >= 400 -> alto
+ETA_CRIT_H = 3.0              # si se agota en < 3 h, es critico aunque tenga litros
 REFILL_MIN_L = 800            # un salto >= 800 L hacia arriba cuenta como recarga
 REFILL_MIN_FRAC = 0.15        # ...y ademas >= 15% del saldo previo
 DESPACHO_WINDOW_H = 3.0       # ventana para promediar la tasa de despacho
@@ -29,9 +30,13 @@ def parse_dt(s):
     return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
 
 
-def estado(veh):
+def estado(veh, eta_h=None):
+    """Semaforo hibrido: por autonomia en vehiculos Y por tiempo a agotarse.
+    Una estacion con litros pero que se vacia muy rapido (ETA < 3 h) tambien es critica."""
     if veh is None:
         return "sin_dato"
+    if eta_h is not None and eta_h < ETA_CRIT_H:
+        return "critico"
     if veh < CRIT_VEH:
         return "critico"
     if veh < LOW_VEH:
@@ -134,7 +139,7 @@ def station_metrics(points, attrs, global_latest_dt):
     return {
         "saldo": int(saldo),
         "vehiculos": round(veh, 1),
-        "estado": estado(veh),
+        "estado": estado(veh, eta_h),
         "fecha": last_dt.strftime("%Y-%m-%d %H:%M:%S"),
         "stale": stale,
         "despacho_lh": round(despacho) if despacho is not None else None,
@@ -271,7 +276,7 @@ INDICADORES = {
     "estado": {
         "nombre": "Estado",
         "unidad": "",
-        "desc": "Semaforo segun la autonomia: critico (<50 veh.), bajo (<150), medio (<400) y alto (>=400).",
+        "desc": "Semaforo hibrido: una estacion es critica si su autonomia baja de 50 vehiculos O si, al ritmo de despacho actual, se agota en menos de 3 horas. Luego: bajo (<150 veh.), medio (<400) y alto (>=400).",
     },
     "despacho_lh": {
         "nombre": "Tasa de despacho",

@@ -3,133 +3,171 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Monitor de Combustibles · Santa Cruz</title>
-  <meta name="description" content="Saldos de gasolina y diésel en estaciones de Santa Cruz (Bolivia), actualizado cada 15 minutos: mapa, indicadores y series temporales.">
+  <title>Monitor de Combustibles · Santa Cruz · POPULI</title>
+  <meta name="description" content="Saldos de gasolina y diésel en estaciones de Santa Cruz (Bolivia), cada 15 minutos: mapa interactivo, indicadores y series temporales. Centro de Estudios POPULI.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <div class="wrap header-inner">
-      <div class="brand">
-        <h1>Monitor de Combustibles</h1>
-        <p class="sub">Estaciones Biopetrol · Santa Cruz, Bolivia</p>
+  <!-- ===== NAVBAR ===== -->
+  <nav class="navbar">
+    <div class="navbar-inner wrap">
+      <div class="nav-left">
+        <svg class="logo-svg" viewBox="0 0 310 130" aria-label="Populi">
+          <text x="6" y="112" font-family="'Playfair Display',Georgia,serif" font-size="145" font-weight="700" class="logo-p">P</text>
+          <text x="92" y="87" font-family="'Playfair Display',Georgia,serif" font-size="55" font-weight="400" font-style="italic" letter-spacing="1" class="logo-opuli">opuli</text>
+        </svg>
+        <span class="nav-divider"></span>
+        <svg class="logo-svg logo-upsa-svg" viewBox="0 0 300 130" aria-label="UPSA">
+          <text x="2" y="84" font-family="Inter,sans-serif" font-size="84" font-weight="800" letter-spacing="-3" class="logo-upsa">UPSA</text>
+          <rect x="5" y="96" width="244" height="5" class="logo-upsa-bar"/>
+          <text x="6" y="121" font-family="Inter,sans-serif" font-size="15" letter-spacing="2" class="logo-upsa-sub">UNIV. PRIVADA SANTA CRUZ</text>
+        </svg>
       </div>
-      <div class="header-right">
-        <div class="updated">
-          <span class="updated-label">Actualizado</span>
-          <span id="updated" class="updated-val">—</span>
-        </div>
+      <div class="nav-center">Monitor de Combustibles · Santa Cruz</div>
+      <div class="nav-right">
+        <div class="nav-meta"><span class="live-dot"></span>Actualizado&nbsp;<b id="updated">—</b></div>
         <button id="theme-toggle" class="theme-btn" aria-label="Cambiar tema" title="Cambiar tema">
-          <svg class="ic-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
-          <svg class="ic-moon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/></svg>
+          <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>
+          <svg class="ic-moon" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z"/></svg>
         </button>
       </div>
     </div>
+  </nav>
+
+  <!-- ===== HERO ===== -->
+  <header class="hero">
+    <div class="hero-watermark">COMBUSTIBLE</div>
+    <div class="hero-inner">
+      <p class="hero-kicker">Centro de Estudios de Políticas Públicas para la Libertad · UPSA</p>
+      <h1>Monitor de Saldos de Combustible <em>· Santa Cruz</em></h1>
+      <p class="hero-desc">Seguimiento en tiempo casi real de los saldos de gasolina y diésel en las
+        estaciones Biopetrol, con mapa interactivo, indicadores de abastecimiento y series históricas.
+        Actualizado cada 15 minutos.</p>
+      <div class="hero-stats" id="hero-stats"></div>
+    </div>
   </header>
 
-  <nav class="navbar">
-    <div class="wrap nav-inner">
-      <div class="tabs" id="tabs">
-        <button class="tab active" data-view="resumen">Resumen</button>
-        <button class="tab" data-view="mapa">Mapa</button>
-        <button class="tab" data-view="estaciones">Estaciones</button>
-        <button class="tab" data-view="patrones">Patrones</button>
-        <button class="tab" data-view="metodologia">Metodología</button>
+  <!-- ===== SUBNAV STICKY ===== -->
+  <div class="subnav">
+    <div class="subnav-inner wrap">
+      <div class="anchors" id="anchors">
+        <a href="#mapa" class="anchor active">Mapa</a>
+        <a href="#resumen" class="anchor">Resumen</a>
+        <a href="#patrones" class="anchor">Patrones</a>
+        <a href="#metodologia" class="anchor">Metodología</a>
       </div>
       <div class="seg" id="producto-seg">
         <button class="seg-btn active" data-pid="134">Gasolina</button>
         <button class="seg-btn" data-pid="132">Diésel</button>
       </div>
     </div>
-  </nav>
+  </div>
 
   <main class="wrap">
+    <!-- MAPA + LISTA INTERACTIVA -->
+    <section id="mapa" class="block">
+      <div class="block-head">
+        <h2>Mapa de estaciones</h2>
+        <label class="color-by">Colorear por
+          <select id="color-by">
+            <option value="estado">Estado (autonomía + ETA)</option>
+            <option value="eta">Tiempo a agotarse</option>
+          </select>
+        </label>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="map-grid">
+        <section class="card map-card"><div id="map"></div></section>
+        <section class="card">
+          <input id="search" class="search" type="search" placeholder="Buscar estación o dirección…">
+          <div id="list" class="list"></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- DETALLE DE ESTACIÓN -->
+    <section id="detalle" class="block">
+      <h2 id="detail-title">Detalle de estación</h2>
+      <div class="detail-grid">
+        <div class="card" id="detail"></div>
+        <div class="card">
+          <h3 class="chart-h">Evolución del saldo (72 h) <i class="info" data-k="ultima_recarga"></i></h3>
+          <div id="chart-station" class="chart-md"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- RESUMEN -->
-    <section id="view-resumen" class="view active">
+    <section id="resumen" class="block">
+      <h2>Resumen de la red</h2>
       <div class="kpis" id="kpis"></div>
       <div class="grid2">
         <section class="card">
-          <h2>Estrés de la red <i class="info" data-k="estres_red"></i></h2>
-          <p class="card-note">% de estaciones en estado crítico a lo largo del tiempo. Más alto = ciudad más tensionada.</p>
+          <h3>Estrés de la red <i class="info" data-k="estres_red"></i></h3>
+          <p class="card-note">% de estaciones críticas a lo largo del tiempo. Más alto = ciudad más tensionada.</p>
           <div id="chart-estres" class="chart-md"></div>
         </section>
         <section class="card">
-          <h2>Stock total de la red <i class="info" data-k="stock_red"></i></h2>
+          <h3>Stock total <i class="info" data-k="stock_red"></i></h3>
           <p class="card-note">Suma del saldo de todas las estaciones del combustible seleccionado.</p>
           <div id="chart-stock" class="chart-md"></div>
         </section>
       </div>
       <section class="card">
-        <h2>Gasolina vs Diésel — disponibilidad ahora</h2>
+        <h3>Gasolina vs Diésel — disponibilidad ahora</h3>
         <p class="card-note">Comparación del abastecimiento actual entre ambos combustibles.</p>
         <div id="compare" class="compare"></div>
       </section>
     </section>
 
-    <!-- MAPA -->
-    <section id="view-mapa" class="view">
-      <div class="map-toolbar">
-        <div class="legend" id="legend"></div>
-        <label class="color-by">Colorear por
-          <select id="color-by">
-            <option value="estado">Estado (autonomía)</option>
-            <option value="eta">Tiempo a agotarse</option>
-          </select>
-        </label>
-      </div>
-      <section class="card map-card"><div id="map"></div></section>
-    </section>
-
-    <!-- ESTACIONES -->
-    <section id="view-estaciones" class="view">
-      <div class="grid-est">
-        <section class="card">
-          <h2>Estaciones <span id="list-count" class="muted"></span></h2>
-          <input id="search" class="search" type="search" placeholder="Buscar estación o dirección…">
-          <div id="list" class="list"></div>
-        </section>
-        <section class="card">
-          <h2 id="detail-title">Detalle de estación</h2>
-          <div id="detail"></div>
-          <h3 class="chart-h">Evolución del saldo (72 h)</h3>
-          <div id="chart-station" class="chart-md"></div>
-        </section>
-      </div>
-    </section>
-
     <!-- PATRONES -->
-    <section id="view-patrones" class="view">
+    <section id="patrones" class="block">
+      <h2>Patrones</h2>
       <section class="card">
-        <h2>Patrón hora × día — estrés de la red <i class="info" data-k="estres_red"></i></h2>
-        <p class="card-note">Promedio del % de estaciones críticas por hora del día y día de la semana. Revela cuándo se tensiona la ciudad.</p>
+        <h3>Patrón hora × día — estrés de la red <i class="info" data-k="estres_red"></i></h3>
+        <p class="card-note">Promedio del % de estaciones críticas por hora y día de la semana. Revela cuándo se tensiona la ciudad.</p>
         <div id="heatmap" class="chart-lg"></div>
       </section>
       <section class="card">
-        <h2>Resumen diario por estación</h2>
+        <h3>Resumen diario por estación</h3>
         <p class="card-note">Mínimo, máximo y promedio del saldo, recargas detectadas y tiempo en crítico.</p>
         <div id="daily" class="table-wrap"></div>
       </section>
     </section>
 
     <!-- METODOLOGÍA -->
-    <section id="view-metodologia" class="view">
+    <section id="metodologia" class="block">
+      <h2>Metodología</h2>
       <section class="card">
-        <h2>Cómo funciona</h2>
         <div class="prose" id="metodo-intro"></div>
       </section>
       <section class="card">
-        <h2>Diccionario de indicadores</h2>
+        <h3>Diccionario de indicadores</h3>
         <div id="metodo-indicadores" class="indic-grid"></div>
       </section>
     </section>
   </main>
 
-  <footer class="wrap">
-    <p>Datos extraídos automáticamente de la Guía Biopetrol cada 15 minutos · Centro de Estudios POPULI.
-       Hora de Bolivia (UTC-4). Las estimaciones de autonomía y despacho son aproximadas.</p>
+  <footer class="site-footer">
+    <div class="wrap">
+      <div class="foot-logos">
+        <svg class="logo-svg foot-logo" viewBox="0 0 310 130" aria-label="Populi">
+          <text x="6" y="112" font-family="'Playfair Display',Georgia,serif" font-size="145" font-weight="700" class="logo-p">P</text>
+          <text x="92" y="87" font-family="'Playfair Display',Georgia,serif" font-size="55" font-weight="400" font-style="italic" letter-spacing="1" class="logo-opuli">opuli</text>
+        </svg>
+        <span class="nav-divider"></span>
+        <svg class="logo-svg foot-logo logo-upsa-svg" viewBox="0 0 300 130" aria-label="UPSA">
+          <text x="2" y="84" font-family="Inter,sans-serif" font-size="84" font-weight="800" letter-spacing="-3" class="logo-upsa">UPSA</text>
+          <rect x="5" y="96" width="244" height="5" class="logo-upsa-bar"/>
+          <text x="6" y="121" font-family="Inter,sans-serif" font-size="15" letter-spacing="2" class="logo-upsa-sub">UNIV. PRIVADA SANTA CRUZ</text>
+        </svg>
+      </div>
+      <p>Datos extraídos automáticamente de la Guía Biopetrol cada 15 minutos · Centro de Estudios POPULI · UPSA.
+         Hora de Bolivia (UTC-4). Las estimaciones de autonomía, despacho y tiempo de agotamiento son aproximadas.</p>
+    </div>
   </footer>
 
   <div id="tooltip" class="tooltip"></div>

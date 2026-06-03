@@ -77,7 +77,7 @@ function renderMapa() {
     const c = colorFor(e, mode);
     const mk = L.circleMarker([e.lat, e.lng], { radius: 5, color: '#fff', weight: 1.5, fillColor: c, fillOpacity: .95 })
       .bindPopup(popupHtml(e, m));
-    mk.on('click', () => selectStation(keyOf(e), false));
+    mk.on('click', () => selectStation(keyOf(e), { fromMap: true }));
     mk.addTo(markerLayer);
     markersByKey[keyOf(e)] = mk;
     pts.push([e.lat, e.lng]);
@@ -124,10 +124,29 @@ function renderEstaciones() {
         <div class="veh">~${fmt(Math.round(e.vehiculos))} veh.</div></div></div>`;
   }).join('') || '<div class="empty">Sin resultados.</div>';
   document.querySelectorAll('#list .row').forEach(row =>
-    row.onclick = () => selectStation(row.dataset.key, false));
+    row.onclick = () => selectStation(row.dataset.key, { zoom: true }));
   if (!list.some(e => keyOf(e) === S.selected)) S.selected = list.length ? keyOf(list[0]) : null;
   renderDetail();
   markActiveRow();
+}
+
+// Selección interactiva (mapa <-> lista <-> detalle)
+function selectStation(key, opts = {}) {
+  S.selected = key;
+  markActiveRow();
+  highlightMarker();
+  renderDetail();
+  const e = estaciones().find(x => keyOf(x) === key);
+  if (!e) return;
+  if (opts.zoom && map && e.lat != null) {
+    map.flyTo([e.lat, e.lng], 15, { duration: .6 });
+    const mk = markersByKey[key];
+    if (mk) setTimeout(() => mk.openPopup(), 250);
+  }
+  if (opts.fromMap) {
+    const row = document.querySelector(`#list .row[data-key="${key}"]`);
+    if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
 }
 function markActiveRow() {
   document.querySelectorAll('#list .row').forEach(r =>
@@ -257,4 +276,27 @@ function hexA(hex, a) {
   if (h.length < 6) return hex;
   const n = parseInt(h, 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+// ---------- HERO ----------
+function renderHero() {
+  const g = S.metrics.red['134'] || {}, d = S.metrics.red['132'] || {};
+  const chips = [
+    { v: fmtL(g.stock), l: 'Gasolina disponible' },
+    { v: fmtL(d.stock), l: 'Diésel disponible' },
+    { v: (g.n_total || 0) + (d.n_total || 0), l: 'estaciones monitoreadas' },
+  ];
+  document.getElementById('hero-stats').innerHTML = chips.map(c =>
+    `<div class="hero-stat"><div class="hv">${c.v}</div><div class="hl">${c.l}</div></div>`).join('');
+}
+
+// ---------- render de toda la página ----------
+function renderAll() {
+  renderHero();
+  renderEstaciones();   // fija la estación seleccionada por defecto
+  renderMapa();         // marcadores + resalta la seleccionada
+  renderResumen();
+  renderPatrones();
+  renderMetodologia();
+  setTimeout(() => Object.values(charts).forEach(c => c.resize()), 40);
 }

@@ -1,26 +1,4 @@
-// ===== Bootstrap, navegación y wiring =====
-
-function renderCurrent() {
-  ({ resumen: renderResumen, mapa: renderMapa, estaciones: renderEstaciones,
-     patrones: renderPatrones, metodologia: renderMetodologia }[S.view] || (() => {}))();
-  // re-tamaño de charts visibles
-  setTimeout(() => Object.values(charts).forEach(c => c.resize()), 30);
-}
-
-function setView(view) {
-  S.view = view;
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.view === view));
-  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + view));
-  renderCurrent();
-}
-
-function selectStation(key) {
-  S.selected = key;
-  markActiveRow();
-  highlightMarker();
-  if (S.view === 'estaciones') renderDetail();
-  if (S.view === 'mapa' && markersByKey[key]) markersByKey[key].openPopup();
-}
+// ===== Bootstrap, navegación (single-page) y wiring =====
 
 function setUpdated() {
   const a = S.latest.actualizado;
@@ -34,7 +12,7 @@ function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
   try { localStorage.setItem('tema', t); } catch (e) {}
   if (tileLayer) tileLayer.setUrl(TILES[t]);
-  renderCurrent();
+  renderAll();
 }
 function initTheme() {
   let t = 'light';
@@ -44,17 +22,31 @@ function initTheme() {
     applyTheme(theme() === 'dark' ? 'light' : 'dark');
 }
 
+// ---- scroll-spy de las anclas ----
+function initScrollSpy() {
+  const links = [...document.querySelectorAll('.anchor')];
+  const secs = links.map(a => document.querySelector(a.getAttribute('href')));
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      if (en.isIntersecting) {
+        const id = '#' + en.target.id;
+        links.forEach(a => a.classList.toggle('active', a.getAttribute('href') === id));
+      }
+    });
+  }, { rootMargin: '-120px 0px -65% 0px', threshold: 0 });
+  secs.forEach(s => s && obs.observe(s));
+}
+
 function wire() {
-  document.querySelectorAll('.tab').forEach(b => b.onclick = () => setView(b.dataset.view));
   document.querySelectorAll('#producto-seg .seg-btn').forEach(b => b.onclick = () => {
     document.querySelectorAll('#producto-seg .seg-btn').forEach(x => x.classList.remove('active'));
     b.classList.add('active');
     S.pid = Number(b.dataset.pid);
     S.selected = null;
-    renderCurrent();
+    renderAll();
   });
-  document.getElementById('search').oninput = () => { if (S.view === 'estaciones') renderEstaciones(); };
-  document.getElementById('color-by').onchange = () => { if (S.view === 'mapa') renderMapa(); };
+  document.getElementById('search').oninput = () => renderEstaciones();
+  document.getElementById('color-by').onchange = () => renderMapa();
 }
 
 async function boot() {
@@ -63,11 +55,12 @@ async function boot() {
   await loadData();
   setUpdated();
   wire();
-  setView('resumen');
+  renderAll();
+  initScrollSpy();
 
   // auto-refresco cada 5 minutos
   setInterval(async () => {
-    try { await loadData(); setUpdated(); renderCurrent(); } catch (e) {}
+    try { await loadData(); setUpdated(); renderAll(); } catch (e) {}
   }, 5 * 60 * 1000);
 }
 
