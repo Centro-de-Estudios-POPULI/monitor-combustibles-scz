@@ -1,0 +1,38 @@
+name: Scrape saldos (cada hora)
+
+on:
+  schedule:
+    - cron: "5 * * * *"   # minuto 5 de cada hora (UTC)
+  workflow_dispatch:        # permite ejecutarlo a mano
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Ejecutar scraper
+        run: python scraper/scrape.py
+
+      - name: Commit de datos
+        run: |
+          git config user.name  "populi-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/data
+          if git diff --cached --quiet; then
+            echo "Sin cambios en los datos."
+          else
+            git commit -m "datos: snapshot $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi

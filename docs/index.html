@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Monitor de Saldos de Combustible · Santa Cruz</title>
+  <meta name="description" content="Saldos de gasolina y diésel en estaciones de Santa Cruz (Bolivia), actualizado cada hora con georreferencia.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div class="wrap header-inner">
+      <div>
+        <h1>Monitor de Saldos de Combustible</h1>
+        <p class="sub">Estaciones Biopetrol · Santa Cruz, Bolivia — actualizado cada hora</p>
+      </div>
+      <div class="updated">
+        <span class="updated-label">Última medición</span>
+        <span id="updated" class="updated-val">—</span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="controls wrap">
+    <div class="seg" id="producto-seg">
+      <button class="seg-btn active" data-pid="134">Gasolina Especial</button>
+      <button class="seg-btn" data-pid="132">Diésel</button>
+    </div>
+    <div class="legend">
+      <span class="legend-item"><i class="dot crit"></i> Crítico</span>
+      <span class="legend-item"><i class="dot low"></i> Bajo</span>
+      <span class="legend-item"><i class="dot mid"></i> Medio</span>
+      <span class="legend-item"><i class="dot high"></i> Alto</span>
+    </div>
+  </nav>
+
+  <section class="wrap kpis" id="kpis"></section>
+
+  <main class="wrap grid">
+    <section class="card map-card">
+      <h2>Mapa de estaciones</h2>
+      <div id="map"></div>
+    </section>
+    <section class="card list-card">
+      <h2>Estaciones <span id="list-count" class="muted"></span></h2>
+      <div id="list" class="list"></div>
+    </section>
+  </main>
+
+  <section class="wrap card chart-card">
+    <h2>Evolución del saldo · <span id="chart-station">selecciona una estación</span></h2>
+    <div id="chart"></div>
+    <p class="muted small">Cada punto es una medición reportada por la fuente. Haz clic en una estación del mapa o de la lista.</p>
+  </section>
+
+  <footer class="wrap">
+    <p>Datos extraídos automáticamente de la Guía Biopetrol. Proyecto de monitoreo · Centro de Estudios POPULI.
+       Volúmenes en litros; "alcanza para N vehículos" es la estimación de la fuente.</p>
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
