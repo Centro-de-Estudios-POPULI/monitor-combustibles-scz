@@ -208,6 +208,38 @@ def network_series(grouped, pid, max_days=14, bucket_min=60):
     return out
 
 
+def stacked_series(grouped, pid, stations_meta, max_days=7, bucket_min=60):
+    """Stock por estacion alineado en buckets (para areas apiladas + linea total).
+    Devuelve {'t': [horas], 'series': [{un, nombre, data:[saldo por bucket]}]}."""
+    stations = {un: pts for (un, p), pts in grouped.items() if p == pid and pts}
+    if not stations:
+        return {"t": [], "series": []}
+    latest = max(pts[-1][0] for pts in stations.values())
+    start = latest - timedelta(days=max_days)
+    step = timedelta(minutes=bucket_min)
+    t = start.replace(minute=0, second=0, microsecond=0)
+    buckets = []
+    while t <= latest:
+        buckets.append(t)
+        t += step
+    times = [b.strftime("%Y-%m-%d %H:%M") for b in buckets]
+    series = []
+    for un, pts in sorted(stations.items(), key=lambda kv: -kv[1][-1][1]):
+        data = []
+        for b in buckets:
+            b_end = b + step
+            val = None
+            for dt, s, _ in pts:
+                if dt <= b_end:
+                    val = s
+                else:
+                    break
+            data.append(val if val is not None else 0)
+        meta = stations_meta.get(str(un), {})
+        series.append({"un": un, "nombre": meta.get("nombre", f"UN-{un}"), "data": data})
+    return {"t": times, "series": series}
+
+
 def heatmap_hora_dia(net_series):
     """Promedio de % de estaciones criticas por (dia_semana, hora) -> patron tipico.
     Devuelve {'data': [[hora, dia, valor], ...], 'dias': [...]}.

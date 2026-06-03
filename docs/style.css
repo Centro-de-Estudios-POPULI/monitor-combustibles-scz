@@ -215,12 +215,44 @@ tr:hover td{background:var(--panel2)}
 .foot-logo{height:30px}
 .site-footer p{font-size:.8rem;line-height:1.6;margin:0;max-width:760px}
 
+/* ===== Tablet ===== */
 @media(max-width:900px){
   .grid2,.map-grid,.detail-grid,.compare,.indic-grid{grid-template-columns:1fr}
   .kpis{grid-template-columns:repeat(2,1fr)}
-  #map{height:400px}
+  #map{height:420px}
   .nav-center{display:none}
-  .navbar-inner{grid-template-columns:1fr auto}
-  .logo-upsa-svg{display:none}
-  html{scroll-padding-top:120px}
+  .navbar-inner{grid-template-columns:auto 1fr}
+  html{scroll-padding-top:118px}
+  .map-grid{display:flex;flex-direction:column}
+  .list{max-height:340px}
+}
+/* ===== Móvil ===== */
+@media(max-width:600px){
+  .wrap{padding:0 14px}
+  .navbar-inner{height:54px}
+  .logo-svg{height:26px}
+  .logo-upsa-svg{display:none}              /* UPSA queda en el hero y el footer */
+  .nav-meta{font-size:10px}
+  .navbar{top:0}.subnav{top:54px}
+  html{scroll-padding-top:112px}
+  .hero{padding:30px 16px 34px}
+  .hero-kicker{font-size:10px;letter-spacing:1px}
+  .hero-desc{font-size:13px}
+  .hero-stat{padding:8px 12px}
+  .hero-watermark{font-size:clamp(70px,22vw,120px);bottom:-14px}
+  .subnav-inner{height:46px}
+  .anchor{padding:7px 10px;font-size:.82rem}
+  .seg-btn{padding:7px 12px;font-size:.8rem}
+  .block{padding:22px 0 4px}
+  .block>h2{font-size:1.2rem}
+  .card{padding:15px;border-radius:14px}
+  #map{height:360px}
+  .kpi .v{font-size:1.3rem}
+  .chart-md{height:260px}.chart-lg{height:300px}
+  .metrics-grid{gap:8px}
+  .metric{padding:10px 11px}
+  th,td{padding:8px 8px;font-size:.8rem}
+}
+@media(max-width:380px){
+  .kpis,.metrics-grid{grid-template-columns:1fr}
 }

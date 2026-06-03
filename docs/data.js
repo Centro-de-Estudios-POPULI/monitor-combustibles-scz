@@ -4,7 +4,7 @@ const PRODUCTOS = { 134: 'Gasolina Especial', 132: 'Diésel' };
 
 const S = {
   pid: 134, view: 'resumen', selected: null,
-  latest: null, metrics: null, series: null, redSeries: null, heatmap: null, daily: null,
+  latest: null, metrics: null, series: null, redSeries: null, stacked: null, heatmap: null, daily: null,
 };
 
 // ---- formato ----
@@ -50,28 +50,32 @@ const indic = k => (S.metrics && S.metrics.indicadores[k]) || { nombre: k, desc:
 
 async function loadData() {
   const j = f => fetch(`data/${f}?t=${Math.floor(Date.now() / 60000)}`).then(r => r.json());
-  const [latest, metrics, series, redSeries, heatmap, daily] = await Promise.all([
+  const [latest, metrics, series, redSeries, stacked, heatmap, daily] = await Promise.all([
     j('latest.json'), j('metrics.json'), j('series_recent.json'),
-    j('red_series.json'), j('heatmap.json'), j('daily.json'),
+    j('red_series.json'), j('stock_stacked.json'), j('heatmap.json'), j('daily.json'),
   ]);
-  Object.assign(S, { latest, metrics, series, redSeries, heatmap, daily });
+  Object.assign(S, { latest, metrics, series, redSeries, stacked, heatmap, daily });
 }
 
-// ---- tooltips de los iconos (i) ----
+// ---- tooltips de los iconos (i): hover en desktop, tap en móvil ----
 function initTooltips() {
   const tip = document.getElementById('tooltip');
-  document.body.addEventListener('mouseover', e => {
-    const el = e.target.closest('.info');
-    if (!el) return;
+  const show = el => {
     const d = indic(el.dataset.k);
     tip.innerHTML = `<b>${d.nombre}</b>${d.unidad ? ` · ${d.unidad}` : ''}<br>${d.desc}`;
     const r = el.getBoundingClientRect();
-    tip.style.left = Math.min(r.left, window.innerWidth - 300) + 'px';
+    tip.style.left = Math.max(10, Math.min(r.left, window.innerWidth - 300)) + 'px';
     tip.style.top = (r.bottom + 8) + 'px';
     tip.classList.add('show');
-  });
-  document.body.addEventListener('mouseout', e => {
-    if (e.target.closest('.info')) tip.classList.remove('show');
+  };
+  const hide = () => tip.classList.remove('show');
+  document.body.addEventListener('mouseover', e => { const el = e.target.closest('.info'); if (el) show(el); });
+  document.body.addEventListener('mouseout', e => { if (e.target.closest('.info')) hide(); });
+  // móvil: tocar el icono lo muestra; tocar fuera lo oculta
+  document.body.addEventListener('click', e => {
+    const el = e.target.closest('.info');
+    if (el) { e.preventDefault(); tip.classList.contains('show') ? hide() : show(el); }
+    else hide();
   });
 }
 

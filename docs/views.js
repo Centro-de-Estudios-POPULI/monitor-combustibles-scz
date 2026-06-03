@@ -28,11 +28,66 @@ function renderResumen() {
 
   lineChart('chart-estres', rs.map(d => [d.t.replace(' ', 'T'), pctCrit(d)]),
     { area: true, suffix: '%', color: cssVar('crit'), max: 100 });
-  lineChart('chart-stock', rs.map(d => [d.t.replace(' ', 'T'), d.stock]),
-    { area: true, suffix: ' L' });
+  renderStockStacked();
   renderCompare();
 }
 const pctCrit = d => d.n_total ? Math.round(100 * d.n_crit / d.n_total) : 0;
+
+// paleta verde/teal para las áreas apiladas
+function stackPalette(n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const h = 150 + (i * 58 / Math.max(1, n - 1));   // verde -> teal -> azulado
+    const l = (theme() === 'dark' ? 42 : 52) + (i % 2 ? 7 : 0);
+    out.push(`hsl(${Math.round(h)},52%,${l}%)`);
+  }
+  return out;
+}
+// Stock total: áreas apiladas por estación (atrás) + línea general (adelante)
+function renderStockStacked() {
+  const st = (S.stacked && S.stacked[String(S.pid)]) || { t: [], series: [] };
+  const c = getChart('chart-stock'); if (!c) return;
+  const th = axisTheme();
+  const xs = st.t.map(t => t.replace(' ', 'T'));
+  const pal = stackPalette(st.series.length);
+  const areas = st.series.map((s, i) => ({
+    name: s.nombre, type: 'line', stack: 'estaciones', smooth: false, showSymbol: false,
+    lineStyle: { width: 0 }, areaStyle: { opacity: theme() === 'dark' ? .65 : .55 },
+    itemStyle: { color: pal[i] }, emphasis: { focus: 'series' }, data: s.data,
+  }));
+  const total = xs.map((_, j) => st.series.reduce((a, s) => a + (s.data[j] || 0), 0));
+  const totalSeries = {
+    name: 'TOTAL', type: 'line', smooth: true, showSymbol: false, z: 20, data: total,
+    lineStyle: { color: th.accent, width: 2.6 }, itemStyle: { color: th.accent }, tooltip: { show: true },
+  };
+  c.setOption({
+    grid: { left: 60, right: 14, top: 14, bottom: 34 },
+    tooltip: {
+      trigger: 'axis', confine: true,
+      formatter: params => {
+        const tot = params.find(p => p.seriesName === 'TOTAL');
+        const st2 = params.filter(p => p.seriesName !== 'TOTAL' && p.value > 0)
+          .sort((a, b) => b.value - a.value);
+        let html = `<b>${params[0].axisValueLabel.slice(5, 16)}</b><br>` +
+          `<b>Total: ${fmt(tot ? tot.value : 0)} L</b>`;
+        st2.slice(0, 7).forEach(p => { html += `<br>${p.marker}${p.seriesName}: ${fmt(p.value)} L`; });
+        if (st2.length > 7) html += `<br><span style="opacity:.6">+${st2.length - 7} estaciones…</span>`;
+        return html;
+      },
+    },
+    xAxis: {
+      type: 'category', data: xs, boundaryGap: false,
+      axisLine: { lineStyle: { color: th.axis } },
+      axisLabel: { color: th.muted, formatter: v => v.slice(5, 10) },
+    },
+    yAxis: {
+      type: 'value', axisLabel: { color: th.muted, formatter: v => v.toLocaleString('es-BO') },
+      splitLine: { lineStyle: { color: th.grid } },
+    },
+    series: [...areas, totalSeries],
+  }, true);
+  if (!xs.length) c.setOption({ graphic: emptyGraphic('Acumulando datos') });
+}
 
 function renderCompare() {
   const el = document.getElementById('compare');

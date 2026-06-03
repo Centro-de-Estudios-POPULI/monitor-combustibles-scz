@@ -246,13 +246,14 @@ def main():
             series[f"{un}-{pid}"] = s
     write_json("series_recent.json", series)
 
-    # red por producto + heatmap + rollups
-    red, red_series, heat = {}, {}, {}
+    # red por producto + heatmap + rollups + apilado por estacion
+    red, red_series, heat, stacked = {}, {}, {}, {}
     for pid_s, nombre in PRODUCTOS.items():
         pid = int(pid_s)
         ns = M.network_series(grouped, pid)
         red_series[pid_s] = ns
         heat[pid_s] = M.heatmap_hora_dia(ns)
+        stacked[pid_s] = M.stacked_series(grouped, pid, stations)
         actuales = [e for e in estaciones if e["producto_id"] == pid]
         n = len(actuales)
         red[pid_s] = {
@@ -265,6 +266,7 @@ def main():
             "estres": round(100 * sum(1 for e in actuales if e["estado"] == "critico") / n, 1) if n else 0,
         }
     write_json("red_series.json", red_series)
+    write_json("stock_stacked.json", stacked)
     write_json("heatmap.json", heat)
     write_json("daily.json", M.daily_rollups(grouped, stations))
 
