@@ -1,5 +1,5 @@
 {
- "actualizado": "2026-06-03 12:04:01",
+ "actualizado": "2026-06-03 12:24:41",
  "estaciones": [
   {
    "un": 100,
@@ -9,10 +9,10 @@
    "direccion": "AV. ALEMANA, 2DO ANILLO",
    "lat": -17.76961441344113,
    "lng": -63.171489567031514,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 15663,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 15083,
    "mangueras": 8.0,
-   "vehiculos": 391.575
+   "vehiculos": 377.075
   },
   {
    "un": 205,
@@ -22,10 +22,10 @@
    "direccion": "AV. BENI, 2DO ANILLO",
    "lat": -17.769963684221935,
    "lng": -63.178899730929984,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 16668,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 16099,
    "mangueras": 6.0,
-   "vehiculos": 416.7
+   "vehiculos": 402.475
   },
   {
    "un": 315,
@@ -35,10 +35,10 @@
    "direccion": "DOBLE VIA LA GUARDIA KM 8",
    "lat": -17.838166685239372,
    "lng": -63.241045083357406,
-   "fecha": "2026-06-03 11:50:49",
-   "saldo": 8488,
+   "fecha": "2026-06-03 12:05:49",
+   "saldo": 8079,
    "mangueras": 8.0,
-   "vehiculos": 212.2
+   "vehiculos": 201.975
   },
   {
    "un": 305,
@@ -48,10 +48,10 @@
    "direccion": "CARRETERA A CAMIRI LOCALIDAD CABEZAS - AV. ELOY ALPIRE",
    "lat": -18.78790161693799,
    "lng": -63.31446054798644,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 1301,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 1208,
    "mangueras": 4.0,
-   "vehiculos": 32.525
+   "vehiculos": 30.2
   },
   {
    "un": 105,
@@ -61,10 +61,10 @@
    "direccion": "AV. VIRGEN DE COTOCA, 2DO ANILLO",
    "lat": -17.782627398322152,
    "lng": -63.1640577245945,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 7572,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 7144,
    "mangueras": 4.0,
-   "vehiculos": 189.3
+   "vehiculos": 178.6
   },
   {
    "un": 115,
@@ -74,10 +74,10 @@
    "direccion": "V. EQUIPETROL, 4TO ANILLO AL FRENTE DE EX - BUFALO PARK",
    "lat": -17.754924145146543,
    "lng": -63.19696908352364,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 26038,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 25131,
    "mangueras": 8.0,
-   "vehiculos": 650.95
+   "vehiculos": 628.275
   },
   {
    "un": 400,
@@ -100,10 +100,10 @@
    "direccion": "CARRETERA A COTOCA, ANTES DE LA TRANCA",
    "lat": -17.765680463066985,
    "lng": -63.070928674378365,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 19020,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 18732,
    "mangueras": 6.0,
-   "vehiculos": 475.5
+   "vehiculos": 468.3
   },
   {
    "un": 210,
@@ -113,10 +113,10 @@
    "direccion": "AV. BANZER, 7MO ANILLO",
    "lat": -17.72643487504358,
    "lng": -63.16585486172886,
-   "fecha": "2026-06-03 11:48:58",
-   "saldo": 29772,
+   "fecha": "2026-06-03 12:03:58",
+   "saldo": 29115,
    "mangueras": 8.0,
-   "vehiculos": 744.3
+   "vehiculos": 727.875
   },
   {
    "un": 125,
@@ -126,10 +126,10 @@
    "direccion": "ORURO - CIRCUNVALACION CALLE A NUM 80, ZONA NORESTE",
    "lat": null,
    "lng": null,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 6204,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 5817,
    "mangueras": 4.0,
-   "vehiculos": 155.1
+   "vehiculos": 145.425
   },
   {
    "un": 135,
@@ -139,10 +139,10 @@
    "direccion": "AV. VIRGEN DE COTOCA 8VO ANILLO",
    "lat": -17.766963876158112,
    "lng": -63.110905455946146,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 12357,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 11902,
    "mangueras": 4.0,
-   "vehiculos": 308.925
+   "vehiculos": 297.55
   },
   {
    "un": 230,
@@ -152,10 +152,10 @@
    "direccion": "LOCALIDAD MONTERO, AV. CIRCUNVALACIÓN",
    "lat": -17.34261560414829,
    "lng": -63.26969423672176,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 5676,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 5384,
    "mangueras": 4.0,
-   "vehiculos": 141.9
+   "vehiculos": 134.6
   },
   {
    "un": 120,
@@ -165,10 +165,10 @@
    "direccion": "AV. PARAGUA, 4TO ANILLO",
    "lat": -17.76461590711055,
    "lng": -63.15063065445854,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 10468,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 10123,
    "mangueras": 4.0,
-   "vehiculos": 261.7
+   "vehiculos": 253.075
   },
   {
    "un": 310,
@@ -178,10 +178,10 @@
    "direccion": "CAMIRI CARRETERA YACUIBA-SANTA CRUZ KM1 ZONA BARRIO LA WILLAMS",
    "lat": -20.022953850434444,
    "lng": -63.53283530848966,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 27649,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 27588,
    "mangueras": 2.0,
-   "vehiculos": 691.225
+   "vehiculos": 689.7
   },
   {
    "un": 300,
@@ -191,10 +191,10 @@
    "direccion": "AV. ROCA Y CORONADO 3ER ANILLO",
    "lat": -17.78616441888315,
    "lng": -63.204842686280244,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 19640,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 19070,
    "mangueras": 6.0,
-   "vehiculos": 491.0
+   "vehiculos": 476.75
   },
   {
    "un": 110,
@@ -204,10 +204,10 @@
    "direccion": "AV. ROQUE AGUILERA ESQ CALLE ANGEL SANDOVAL NRO 3897 ZONA VILLA FATIMA",
    "lat": -17.806838656054467,
    "lng": -63.19809720933443,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 844,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 516,
    "mangueras": 4.0,
-   "vehiculos": 21.1
+   "vehiculos": 12.9
   },
   {
    "un": 200,
@@ -217,10 +217,10 @@
    "direccion": "AV. SANTOS DUMONT, 2DO ANILLO",
    "lat": -17.801036539769974,
    "lng": -63.18120769345767,
-   "fecha": "2026-06-03 11:50:31",
-   "saldo": 20659,
+   "fecha": "2026-06-03 12:05:31",
+   "saldo": 20220,
    "mangueras": 6.0,
-   "vehiculos": 516.475
+   "vehiculos": 505.5
   },
   {
    "un": 215,
@@ -230,10 +230,10 @@
    "direccion": "KM11 AL NORTE A LADO DE PLAY LAND PARK",
    "lat": -17.67610976467808,
    "lng": -63.15916032775997,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 25654,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 24792,
    "mangueras": 8.0,
-   "vehiculos": 641.35
+   "vehiculos": 619.8
   },
   {
    "un": 210,
@@ -243,7 +243,7 @@
    "direccion": "AV. BANZER, 7MO ANILLO",
    "lat": -17.72643487504358,
    "lng": -63.16585486172886,
-   "fecha": "2026-06-03 11:48:58",
+   "fecha": "2026-06-03 12:03:58",
    "saldo": 54,
    "mangueras": 4.0,
    "vehiculos": 0.216
@@ -256,10 +256,10 @@
    "direccion": "ORURO - CIRCUNVALACION CALLE A NUM 80, ZONA NORESTE",
    "lat": null,
    "lng": null,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 24208,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 24152,
    "mangueras": 4.0,
-   "vehiculos": 96.832
+   "vehiculos": 96.608
   },
   {
    "un": 230,
@@ -269,10 +269,10 @@
    "direccion": "LOCALIDAD MONTERO, AV. CIRCUNVALACIÓN",
    "lat": -17.34261560414829,
    "lng": -63.26969423672176,
-   "fecha": "2026-06-03 12:01:00",
-   "saldo": 8212,
+   "fecha": "2026-06-03 12:16:00",
+   "saldo": 8012,
    "mangueras": 4.0,
-   "vehiculos": 32.848
+   "vehiculos": 32.048
   },
   {
    "un": 310,
@@ -282,7 +282,7 @@
    "direccion": "CAMIRI CARRETERA YACUIBA-SANTA CRUZ KM1 ZONA BARRIO LA WILLAMS",
    "lat": -20.022953850434444,
    "lng": -63.53283530848966,
-   "fecha": "2026-06-03 12:01:00",
+   "fecha": "2026-06-03 12:16:00",
    "saldo": 14134,
    "mangueras": 2.0,
    "vehiculos": 56.536
