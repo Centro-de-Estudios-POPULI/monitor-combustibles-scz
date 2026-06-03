@@ -83,8 +83,9 @@ body{margin:0;background:var(--bg);color:var(--txt);font-family:'Inter',system-u
 /* ===== Subnav sticky ===== */
 .subnav{position:sticky;top:60px;z-index:550;background:var(--panel);border-bottom:1px solid var(--line);
   box-shadow:var(--shadow-sm)}
-.subnav-inner{display:flex;justify-content:space-between;align-items:center;gap:14px;height:48px;flex-wrap:nowrap;overflow-x:auto}
-.anchors{display:flex;gap:4px}
+.subnav-inner{display:flex;justify-content:space-between;align-items:center;gap:14px;min-height:48px}
+.anchors{display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.anchors::-webkit-scrollbar{display:none}
 .anchor{text-decoration:none;color:var(--muted);font-weight:600;font-size:.88rem;padding:8px 13px;
   border-radius:9px;white-space:nowrap;transition:.15s}
 .anchor:hover{color:var(--txt)}
@@ -95,7 +96,7 @@ body{margin:0;background:var(--bg);color:var(--txt);font-family:'Inter',system-u
 .seg-btn.active{background:var(--accent);color:#fff}
 
 /* ===== Bloques y tarjetas ===== */
-main{padding-bottom:10px}
+main{padding-bottom:10px;overflow-x:hidden}   /* red de seguridad anti-desbordamiento (no rompe el sticky) */
 .block{padding:30px 0 6px;scroll-margin-top:118px}
 .block>h2{font-size:1.45rem;font-family:'Inter';font-weight:800;letter-spacing:-.4px;margin:0 0 16px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow);margin-bottom:16px}
@@ -121,10 +122,13 @@ main{padding-bottom:10px}
   font-style:normal;font-size:10px;font-weight:700;display:inline-grid;place-items:center;cursor:help;flex:none}
 .info::before{content:"i"}
 .info:hover{border-color:var(--accent);color:var(--accent)}
-.tooltip{position:fixed;z-index:1000;max-width:290px;background:var(--txt);color:var(--bg);
-  padding:9px 11px;border-radius:9px;font-size:.8rem;line-height:1.4;pointer-events:none;opacity:0;
-  transition:opacity .12s;box-shadow:var(--shadow)}
-.tooltip.show{opacity:1}
+.tooltip{position:fixed;z-index:1000;max-width:300px;background:rgba(13,27,42,.96);color:#EAF2EF;
+  font-family:'Inter',sans-serif;padding:11px 13px;border-radius:12px;font-size:.8rem;line-height:1.5;
+  letter-spacing:.1px;border:1px solid rgba(255,255,255,.10);box-shadow:0 12px 36px rgba(0,0,0,.30);
+  backdrop-filter:blur(6px);pointer-events:none;opacity:0;transform:translateY(-4px);
+  transition:opacity .15s,transform .15s}
+.tooltip.show{opacity:1;transform:none}
+.tooltip b{color:var(--mint);font-weight:600;letter-spacing:.2px}
 
 /* Mapa */
 .block-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px}
@@ -234,7 +238,12 @@ tr:hover td{background:var(--panel2)}
   .logo-upsa-svg{display:none}              /* UPSA queda en el hero y el footer */
   .nav-meta{font-size:10px}
   .navbar{top:0}.subnav{top:54px}
-  html{scroll-padding-top:112px}
+  html{scroll-padding-top:150px}
+  /* toggle de combustible: cinta propia arriba, ancho completo, siempre visible */
+  .subnav-inner{flex-direction:column;gap:0;padding:7px 0;min-height:0}
+  #producto-seg{order:-1;width:100%;margin-bottom:7px}
+  #producto-seg .seg-btn{flex:1;padding:9px 0;font-size:.88rem}
+  .anchors{width:100%}
   .hero{padding:30px 16px 34px}
   .hero-kicker{font-size:10px;letter-spacing:1px}
   .hero-desc{font-size:13px}

@@ -57,6 +57,12 @@ async function boot() {
   renderAll();
   initScrollSpy();
 
+  // reajuste robusto en móvil: tras el layout, al cargar imágenes y al rotar
+  const refit = () => { try { if (typeof map !== 'undefined' && map) map.invalidateSize(); Object.values(charts).forEach(c => c.resize()); } catch (e) {} };
+  [200, 600, 1200].forEach(ms => setTimeout(refit, ms));
+  window.addEventListener('load', refit);
+  window.addEventListener('orientationchange', () => setTimeout(refit, 300));
+
   // auto-refresco cada 5 minutos
   setInterval(async () => {
     try { await loadData(); setUpdated(); renderAll(); } catch (e) {}

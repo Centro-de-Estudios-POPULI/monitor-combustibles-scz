@@ -63,7 +63,7 @@ function renderStockStacked() {
   c.setOption({
     grid: { left: 60, right: 14, top: 14, bottom: 34 },
     tooltip: {
-      trigger: 'axis', confine: true,
+      trigger: 'axis', confine: true, ...tipStyle(),
       formatter: params => {
         const tot = params.find(p => p.seriesName === 'TOTAL');
         const st2 = params.filter(p => p.seriesName !== 'TOTAL' && p.value > 0)
@@ -292,7 +292,7 @@ function renderHeatmap() {
   const horas = Array.from({ length: 24 }, (_, i) => i + 'h');
   const max = Math.max(10, ...hm.data.map(d => d[2]));
   getChart('heatmap').setOption({
-    tooltip: { position: 'top', formatter: p => `${hm.dias[p.value[1]]} ${p.value[0]}:00<br>${p.value[2]}% críticas` },
+    tooltip: { position: 'top', ...tipStyle(), formatter: p => `${hm.dias[p.value[1]]} ${p.value[0]}:00<br>${p.value[2]}% críticas` },
     grid: { left: 44, right: 14, top: 10, bottom: 28 },
     xAxis: { type: 'category', data: horas, splitArea: { show: true }, axisLabel: { color: t.muted, interval: 1 }, axisLine: { lineStyle: { color: t.axis } } },
     yAxis: { type: 'category', data: hm.dias, splitArea: { show: true }, axisLabel: { color: t.muted }, axisLine: { lineStyle: { color: t.axis } } },
@@ -346,7 +346,7 @@ function lineChart(id, data, opts = {}) {
   const color = opts.color || t.accent;
   c.setOption({
     grid: { left: 58, right: 16, top: 14, bottom: 36 },
-    tooltip: { trigger: 'axis', valueFormatter: v => fmt(v) + (opts.suffix || '') },
+    tooltip: { trigger: 'axis', confine: true, valueFormatter: v => fmt(v) + (opts.suffix || ''), ...tipStyle() },
     xAxis: { type: 'time', axisLine: { lineStyle: { color: t.axis } }, axisLabel: { color: t.muted } },
     yAxis: { type: 'value', max: opts.max, axisLabel: { color: t.muted, formatter: v => v.toLocaleString('es-BO') },
       splitLine: { lineStyle: { color: t.grid } } },

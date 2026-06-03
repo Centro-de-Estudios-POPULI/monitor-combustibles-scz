@@ -84,10 +84,23 @@ const charts = {};
 function getChart(id) {
   const el = document.getElementById(id);
   if (!el) return null;
-  if (!charts[id]) charts[id] = echarts.init(el, null, { renderer: 'canvas' });
+  if (!charts[id]) {
+    charts[id] = echarts.init(el, null, { renderer: 'canvas' });
+    // cada chart se reajusta solo al tamaño de su contenedor (móvil/rotación)
+    if (window.ResizeObserver) new ResizeObserver(() => charts[id].resize()).observe(el);
+  }
   return charts[id];
 }
 function axisTheme() {
   return { muted: cssVar('muted'), axis: cssVar('axis'), grid: cssVar('grid'), accent: cssVar('accent') };
+}
+// estilo premium compartido para los tooltips de ECharts
+function tipStyle() {
+  return {
+    backgroundColor: theme() === 'dark' ? 'rgba(18,22,28,.97)' : 'rgba(13,27,42,.96)',
+    borderColor: 'rgba(255,255,255,.10)', borderWidth: 1, padding: [10, 13],
+    textStyle: { color: '#EAF2EF', fontFamily: 'Inter', fontSize: 12, lineHeight: 18 },
+    extraCssText: 'border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.30);backdrop-filter:blur(5px);',
+  };
 }
 window.addEventListener('resize', () => Object.values(charts).forEach(c => c.resize()));

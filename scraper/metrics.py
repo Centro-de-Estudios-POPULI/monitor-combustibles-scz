@@ -163,7 +163,9 @@ def network_series(grouped, pid, max_days=14, bucket_min=60):
     if not stations:
         return []
     latest = max(pts[-1][0] for pts in stations.values())
-    start = latest - timedelta(days=max_days)
+    earliest = min(pts[0][0] for pts in stations.values())
+    # arranca en el primer dato real (no rellenar dias sin mediciones)
+    start = max(latest - timedelta(days=max_days), earliest)
 
     # buckets alineados a bucket_min
     step = timedelta(minutes=bucket_min)
@@ -215,7 +217,8 @@ def stacked_series(grouped, pid, stations_meta, max_days=7, bucket_min=60):
     if not stations:
         return {"t": [], "series": []}
     latest = max(pts[-1][0] for pts in stations.values())
-    start = latest - timedelta(days=max_days)
+    earliest = min(pts[0][0] for pts in stations.values())
+    start = max(latest - timedelta(days=max_days), earliest)
     step = timedelta(minutes=bucket_min)
     t = start.replace(minute=0, second=0, microsecond=0)
     buckets = []
