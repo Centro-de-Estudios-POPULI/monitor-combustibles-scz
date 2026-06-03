@@ -1,0 +1,260 @@
+// ===== Render de cada vista =====
+
+function infoIcon(k) { return `<i class="info" data-k="${k}"></i>`; }
+
+// ---------- RESUMEN ----------
+function renderResumen() {
+  const r = S.metrics.red[S.pid];
+  const rs = S.redSeries[String(S.pid)] || [];
+  // tendencia de stock vs ~24h atras
+  let trend = '';
+  if (rs.length > 4) {
+    const ahora = rs[rs.length - 1].stock;
+    const ref = rs[Math.max(0, rs.length - 25)].stock;
+    if (ref > 0) {
+      const pct = Math.round(100 * (ahora - ref) / ref);
+      const cls = pct >= 0 ? 'up' : 'down';
+      trend = `<span class="trend ${cls}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct)}% / 24h</span>`;
+    }
+  }
+  const kpis = [
+    { v: fmtL(r.stock), l: `stock total ${infoIcon('stock_red')}`, t: trend },
+    { v: `${r.n_con}/${r.n_total}`, l: 'estaciones con stock' },
+    { v: `${r.estres}%`, l: `estrés de la red ${infoIcon('estres_red')}` },
+    { v: fmt(r.vehiculos), l: 'vehículos que alcanza' },
+  ];
+  document.getElementById('kpis').innerHTML = kpis.map(k =>
+    `<div class="kpi"><div class="v">${k.v}${k.t || ''}</div><div class="l">${k.l}</div></div>`).join('');
+
+  lineChart('chart-estres', rs.map(d => [d.t.replace(' ', 'T'), pctCrit(d)]),
+    { area: true, suffix: '%', color: cssVar('crit'), max: 100 });
+  lineChart('chart-stock', rs.map(d => [d.t.replace(' ', 'T'), d.stock]),
+    { area: true, suffix: ' L' });
+  renderCompare();
+}
+const pctCrit = d => d.n_total ? Math.round(100 * d.n_crit / d.n_total) : 0;
+
+function renderCompare() {
+  const el = document.getElementById('compare');
+  el.innerHTML = Object.keys(PRODUCTOS).map(pid => {
+    const r = S.metrics.red[pid];
+    if (!r) return '';
+    const col = r.estres >= 40 ? cssVar('crit') : r.estres >= 15 ? cssVar('low') : cssVar('high');
+    return `<div class="comp-card">
+      <div class="pname">${r.producto}</div>
+      <div class="comp-row"><span>Stock total</span><b>${fmtL(r.stock)}</b></div>
+      <div class="comp-row"><span>Con stock</span><b>${r.n_con}/${r.n_total}</b></div>
+      <div class="comp-row"><span>En crítico</span><b>${r.n_critico}</b></div>
+      <div class="comp-row"><span>Vehículos</span><b>${fmt(r.vehiculos)}</b></div>
+      <div class="comp-row"><span>Estrés</span><b>${r.estres}%</b></div>
+      <div class="barmeter"><span style="width:${r.estres}%;background:${col}"></span></div>
+    </div>`;
+  }).join('');
+}
+
+// ---------- MAPA ----------
+let map, markerLayer, tileLayer, markersByKey = {};
+const TILES = {
+  light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+};
+function ensureMap() {
+  if (map) { map.invalidateSize(); return; }
+  map = L.map('map', { scrollWheelZoom: false }).setView(SANTA_CRUZ, 11);
+  tileLayer = L.tileLayer(TILES[theme()], { attribution: '&copy; OpenStreetMap, &copy; CARTO', maxZoom: 19 }).addTo(map);
+  markerLayer = L.layerGroup().addTo(map);
+}
+function renderMapa() {
+  ensureMap();
+  const mode = document.getElementById('color-by').value;
+  renderLegend(mode);
+  markerLayer.clearLayers();
+  markersByKey = {};
+  const pts = [];
+  estaciones().forEach(e => {
+    if (e.lat == null || e.lng == null) return;
+    const m = metricOf(keyOf(e));
+    const c = colorFor(e, mode);
+    const mk = L.circleMarker([e.lat, e.lng], { radius: 5, color: '#fff', weight: 1.5, fillColor: c, fillOpacity: .95 })
+      .bindPopup(popupHtml(e, m));
+    mk.on('click', () => selectStation(keyOf(e), false));
+    mk.addTo(markerLayer);
+    markersByKey[keyOf(e)] = mk;
+    pts.push([e.lat, e.lng]);
+  });
+  if (pts.length) map.fitBounds(pts, { padding: [40, 40], maxZoom: 13 });
+  highlightMarker();
+}
+function popupHtml(e, m) {
+  const eta = m.eta_horas != null
+    ? `<div class="pp-eta" style="color:${estadoColor(etaBucket(m.eta_horas))}">Se agota en ~${m.eta_horas} h</div>` : '';
+  return `<div class="pp-name">${e.nombre}${e.stale ? ' <span class="tag-stale">dato viejo</span>' : ''}</div>
+    <div class="pp-addr">${e.direccion || ''}</div>
+    <div class="pp-saldo">${fmtL(e.saldo)}</div>
+    <div class="pp-veh">Alcanza para ~${fmt(Math.round(e.vehiculos))} vehículos</div>${eta}`;
+}
+function renderLegend(mode) {
+  const items = mode === 'eta'
+    ? [['critico', '< 3 h'], ['bajo', '3–8 h'], ['medio', '8–24 h'], ['alto', '> 24 h']]
+    : [['critico', 'Crítico'], ['bajo', 'Bajo'], ['medio', 'Medio'], ['alto', 'Alto']];
+  document.getElementById('legend').innerHTML = items.map(([est, lbl]) =>
+    `<span class="legend-item"><i class="dot" style="background:${estadoColor(est)}"></i>${lbl}</span>`).join('');
+}
+function highlightMarker() {
+  Object.entries(markersByKey).forEach(([k, mk]) => {
+    const sel = k === S.selected;
+    mk.setRadius(sel ? 8 : 5); mk.setStyle({ weight: sel ? 2.5 : 1.5 });
+    if (sel) mk.bringToFront();
+  });
+}
+
+// ---------- ESTACIONES ----------
+function renderEstaciones() {
+  const q = (document.getElementById('search').value || '').toLowerCase();
+  const list = estaciones().filter(e =>
+    !q || e.nombre.toLowerCase().includes(q) || (e.direccion || '').toLowerCase().includes(q));
+  document.getElementById('list-count').textContent = `(${list.length})`;
+  document.getElementById('list').innerHTML = list.map(e => {
+    const c = estadoColor(e.estado);
+    return `<div class="row" data-key="${keyOf(e)}">
+      <span class="bar" style="background:${c}"></span>
+      <div><div class="name">${e.nombre}${e.stale ? '<span class="tag-stale">viejo</span>' : ''}</div>
+        <div class="addr">${e.direccion || ''}</div></div>
+      <div class="vals"><div class="saldo">${fmtL(e.saldo)}</div>
+        <div class="veh">~${fmt(Math.round(e.vehiculos))} veh.</div></div></div>`;
+  }).join('') || '<div class="empty">Sin resultados.</div>';
+  document.querySelectorAll('#list .row').forEach(row =>
+    row.onclick = () => selectStation(row.dataset.key, false));
+  if (!list.some(e => keyOf(e) === S.selected)) S.selected = list.length ? keyOf(list[0]) : null;
+  renderDetail();
+  markActiveRow();
+}
+function markActiveRow() {
+  document.querySelectorAll('#list .row').forEach(r =>
+    r.classList.toggle('active', r.dataset.key === S.selected));
+}
+function renderDetail() {
+  const e = estaciones().find(x => keyOf(x) === S.selected);
+  const box = document.getElementById('detail');
+  if (!e) { box.innerHTML = '<div class="empty">Selecciona una estación.</div>'; getChart('chart-station').clear(); return; }
+  const m = metricOf(keyOf(e));
+  document.getElementById('detail-title').textContent = 'Detalle · ' + e.nombre;
+  const badge = `<span class="badge" style="background:${estadoColor(e.estado)}">${ESTADO_LABEL[e.estado] || e.estado}</span>`;
+  const rec = m.ultima_recarga ? `${fmt(m.ultima_recarga.delta)} L · ${m.ultima_recarga.t.slice(5, 16)}` : '—';
+  const cells = [
+    ['saldo', fmtL(e.saldo)], ['vehiculos', fmt(Math.round(e.vehiculos))],
+    ['despacho_lh', m.despacho_lh != null ? fmt(m.despacho_lh) + ' L/h' : '—'],
+    ['eta_horas', m.eta_horas != null ? m.eta_horas + ' h' : '—'],
+    ['saldo_por_manguera', m.saldo_por_manguera != null ? fmtL(m.saldo_por_manguera) : '—'],
+    ['capacidad_lh', m.capacidad_lh != null ? fmt(m.capacidad_lh) + ' L/h' : '—'],
+    ['saturacion', m.saturacion != null ? m.saturacion : '—'],
+    ['vaciado_plena_h', m.vaciado_plena_h != null ? m.vaciado_plena_h + ' h' : '—'],
+    ['uptime_hoy', m.uptime_hoy != null ? m.uptime_hoy + '%' : '—'],
+    ['pct_critico_hoy', m.pct_critico_hoy != null ? m.pct_critico_hoy + '%' : '—'],
+    ['ultima_recarga', rec],
+  ];
+  box.innerHTML = `<div class="detail-head"><div>${badge}${e.stale ? ' <span class="tag-stale">dato viejo</span>' : ''}</div></div>
+    <p class="detail-addr">${e.direccion || ''} · ${e.mangueras || '?'} mangueras · ${relTime(e.fecha)}</p>
+    <div class="metrics-grid">${cells.map(([k, v]) =>
+      `<div class="metric"><div class="mv">${v}</div><div class="ml">${indic(k).nombre} ${infoIcon(k)}</div></div>`).join('')}</div>`;
+  renderStationChart(e, m);
+}
+function renderStationChart(e, m) {
+  const raw = (S.series && S.series[keyOf(e)]) || [];
+  const data = raw.map(([t, v]) => [t.replace(' ', 'T'), v]);
+  const marks = (m.recargas || []).map(r => ({
+    xAxis: r.t.replace(' ', 'T'),
+    label: { formatter: '+' + fmt(r.delta) + ' L', color: cssVar('high'), fontSize: 10 },
+    lineStyle: { color: cssVar('high'), type: 'dashed' },
+  }));
+  lineChart('chart-station', data, {
+    area: true, suffix: ' L',
+    markLine: marks.length ? { symbol: 'none', data: marks } : null,
+    empty: raw.length <= 1 ? 'Acumulando histórico (vuelve en unas horas)' : null,
+  });
+}
+
+// ---------- PATRONES ----------
+function renderPatrones() {
+  renderHeatmap();
+  renderDaily();
+}
+function renderHeatmap() {
+  const hm = (S.heatmap && S.heatmap[String(S.pid)]) || { data: [], dias: [] };
+  const t = axisTheme();
+  const horas = Array.from({ length: 24 }, (_, i) => i + 'h');
+  const max = Math.max(10, ...hm.data.map(d => d[2]));
+  getChart('heatmap').setOption({
+    tooltip: { position: 'top', formatter: p => `${hm.dias[p.value[1]]} ${p.value[0]}:00<br>${p.value[2]}% críticas` },
+    grid: { left: 44, right: 14, top: 10, bottom: 28 },
+    xAxis: { type: 'category', data: horas, splitArea: { show: true }, axisLabel: { color: t.muted, interval: 1 }, axisLine: { lineStyle: { color: t.axis } } },
+    yAxis: { type: 'category', data: hm.dias, splitArea: { show: true }, axisLabel: { color: t.muted }, axisLine: { lineStyle: { color: t.axis } } },
+    visualMap: { min: 0, max, calculable: true, orient: 'horizontal', left: 'center', bottom: -4, show: false,
+      inRange: { color: [cssVar('high'), cssVar('mid'), cssVar('low'), cssVar('crit')] } },
+    series: [{ type: 'heatmap', data: hm.data, itemStyle: { borderColor: cssVar('panel'), borderWidth: 1 } }],
+  }, true);
+  if (!hm.data.length) getChart('heatmap').setOption({ graphic: emptyGraphic('Acumulando datos para el patrón') });
+}
+function renderDaily() {
+  const dates = Object.keys(S.daily || {}).sort();
+  const el = document.getElementById('daily');
+  if (!dates.length) { el.innerHTML = '<div class="empty">Aún no hay resúmenes diarios.</div>'; return; }
+  const day = dates[dates.length - 1];
+  const rows = (S.daily[day] || []).filter(r => r.producto_id === S.pid)
+    .sort((a, b) => b.saldo_prom - a.saldo_prom);
+  el.innerHTML = `<p class="card-note">Día ${day} · combustible: ${PRODUCTOS[S.pid]}</p>
+    <table><thead><tr>
+      <th>Estación</th><th class="num">Mín</th><th class="num">Prom</th><th class="num">Máx</th>
+      <th class="num">Recargas</th><th class="num">Vol. recargado</th><th class="num">% crítico</th>
+    </tr></thead><tbody>${rows.map(r => `<tr>
+      <td>${r.nombre}</td><td class="num">${fmt(r.saldo_min)}</td><td class="num">${fmt(r.saldo_prom)}</td>
+      <td class="num">${fmt(r.saldo_max)}</td><td class="num">${r.n_recargas}</td>
+      <td class="num">${fmt(r.vol_recargado)}</td><td class="num">${r.pct_critico}%</td></tr>`).join('')}</tbody></table>`;
+}
+
+// ---------- METODOLOGÍA ----------
+function renderMetodologia() {
+  document.getElementById('metodo-intro').innerHTML = `
+    <p>Este monitor extrae cada <b>15 minutos</b> los saldos de combustible que publica la
+       <b>Guía Biopetrol</b> para las estaciones de Santa Cruz, los almacena y calcula indicadores.</p>
+    <p>La fuente reporta, por estación: el <code>saldo</code> en litros, la hora de la medición, el número de
+       <code>mangueras</code>, la carga promedio por vehículo (~40 L) y la georreferencia. A partir de la
+       <b>serie temporal</b> que vamos acumulando se derivan el resto de indicadores.</p>
+    <p>Todo se maneja en <b>hora de Bolivia (UTC-4)</b>. Las estimaciones de despacho, tiempo de agotamiento y
+       saturación son aproximaciones basadas en la evolución del saldo, no cifras oficiales.</p>`;
+  const ind = S.metrics.indicadores;
+  document.getElementById('metodo-indicadores').innerHTML = Object.values(ind).map(d =>
+    `<div class="indic"><div class="it"><span>${d.nombre}</span><span class="iu">${d.unidad || ''}</span></div>
+      <div class="id">${d.desc}</div></div>`).join('');
+}
+
+// ---------- helpers de chart ----------
+function emptyGraphic(text) {
+  return { type: 'text', left: 'center', top: 'middle',
+    style: { text, fill: cssVar('muted'), fontSize: 13, textAlign: 'center' } };
+}
+function lineChart(id, data, opts = {}) {
+  const c = getChart(id); if (!c) return;
+  const t = axisTheme();
+  const color = opts.color || t.accent;
+  c.setOption({
+    grid: { left: 58, right: 16, top: 14, bottom: 36 },
+    tooltip: { trigger: 'axis', valueFormatter: v => fmt(v) + (opts.suffix || '') },
+    xAxis: { type: 'time', axisLine: { lineStyle: { color: t.axis } }, axisLabel: { color: t.muted } },
+    yAxis: { type: 'value', max: opts.max, axisLabel: { color: t.muted, formatter: v => v.toLocaleString('es-BO') },
+      splitLine: { lineStyle: { color: t.grid } } },
+    series: [{
+      type: 'line', smooth: true, showSymbol: data.length < 40, symbolSize: 5, data,
+      lineStyle: { color, width: 2.2 }, itemStyle: { color },
+      areaStyle: opts.area ? { color: hexA(color, theme() === 'dark' ? .16 : .10) } : null,
+      markLine: opts.markLine,
+    }],
+    graphic: opts.empty ? emptyGraphic(opts.empty) : [],
+  }, true);
+}
+function hexA(hex, a) {
+  const h = hex.replace('#', '');
+  if (h.length < 6) return hex;
+  const n = parseInt(h, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}

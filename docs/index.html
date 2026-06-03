@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Monitor de Saldos de Combustible · Santa Cruz</title>
-  <meta name="description" content="Saldos de gasolina y diésel en estaciones de Santa Cruz (Bolivia), actualizado cada hora con georreferencia.">
+  <title>Monitor de Combustibles · Santa Cruz</title>
+  <meta name="description" content="Saldos de gasolina y diésel en estaciones de Santa Cruz (Bolivia), actualizado cada 15 minutos: mapa, indicadores y series temporales.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -13,13 +13,13 @@
 <body>
   <header>
     <div class="wrap header-inner">
-      <div>
-        <h1>Monitor de Saldos de Combustible</h1>
-        <p class="sub">Estaciones Biopetrol · Santa Cruz, Bolivia — actualizado cada hora</p>
+      <div class="brand">
+        <h1>Monitor de Combustibles</h1>
+        <p class="sub">Estaciones Biopetrol · Santa Cruz, Bolivia</p>
       </div>
       <div class="header-right">
         <div class="updated">
-          <span class="updated-label">Última medición</span>
+          <span class="updated-label">Actualizado</span>
           <span id="updated" class="updated-val">—</span>
         </div>
         <button id="theme-toggle" class="theme-btn" aria-label="Cambiar tema" title="Cambiar tema">
@@ -30,45 +30,114 @@
     </div>
   </header>
 
-  <nav class="controls wrap">
-    <div class="seg" id="producto-seg">
-      <button class="seg-btn active" data-pid="134">Gasolina Especial</button>
-      <button class="seg-btn" data-pid="132">Diésel</button>
-    </div>
-    <div class="legend">
-      <span class="legend-item"><i class="dot crit"></i> Crítico</span>
-      <span class="legend-item"><i class="dot low"></i> Bajo</span>
-      <span class="legend-item"><i class="dot mid"></i> Medio</span>
-      <span class="legend-item"><i class="dot high"></i> Alto</span>
+  <nav class="navbar">
+    <div class="wrap nav-inner">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-view="resumen">Resumen</button>
+        <button class="tab" data-view="mapa">Mapa</button>
+        <button class="tab" data-view="estaciones">Estaciones</button>
+        <button class="tab" data-view="patrones">Patrones</button>
+        <button class="tab" data-view="metodologia">Metodología</button>
+      </div>
+      <div class="seg" id="producto-seg">
+        <button class="seg-btn active" data-pid="134">Gasolina</button>
+        <button class="seg-btn" data-pid="132">Diésel</button>
+      </div>
     </div>
   </nav>
 
-  <section class="wrap kpis" id="kpis"></section>
-
-  <main class="wrap grid">
-    <section class="card map-card">
-      <h2>Mapa de estaciones</h2>
-      <div id="map"></div>
+  <main class="wrap">
+    <!-- RESUMEN -->
+    <section id="view-resumen" class="view active">
+      <div class="kpis" id="kpis"></div>
+      <div class="grid2">
+        <section class="card">
+          <h2>Estrés de la red <i class="info" data-k="estres_red"></i></h2>
+          <p class="card-note">% de estaciones en estado crítico a lo largo del tiempo. Más alto = ciudad más tensionada.</p>
+          <div id="chart-estres" class="chart-md"></div>
+        </section>
+        <section class="card">
+          <h2>Stock total de la red <i class="info" data-k="stock_red"></i></h2>
+          <p class="card-note">Suma del saldo de todas las estaciones del combustible seleccionado.</p>
+          <div id="chart-stock" class="chart-md"></div>
+        </section>
+      </div>
+      <section class="card">
+        <h2>Gasolina vs Diésel — disponibilidad ahora</h2>
+        <p class="card-note">Comparación del abastecimiento actual entre ambos combustibles.</p>
+        <div id="compare" class="compare"></div>
+      </section>
     </section>
-    <section class="card list-card">
-      <h2>Estaciones <span id="list-count" class="muted"></span></h2>
-      <div id="list" class="list"></div>
+
+    <!-- MAPA -->
+    <section id="view-mapa" class="view">
+      <div class="map-toolbar">
+        <div class="legend" id="legend"></div>
+        <label class="color-by">Colorear por
+          <select id="color-by">
+            <option value="estado">Estado (autonomía)</option>
+            <option value="eta">Tiempo a agotarse</option>
+          </select>
+        </label>
+      </div>
+      <section class="card map-card"><div id="map"></div></section>
+    </section>
+
+    <!-- ESTACIONES -->
+    <section id="view-estaciones" class="view">
+      <div class="grid-est">
+        <section class="card">
+          <h2>Estaciones <span id="list-count" class="muted"></span></h2>
+          <input id="search" class="search" type="search" placeholder="Buscar estación o dirección…">
+          <div id="list" class="list"></div>
+        </section>
+        <section class="card">
+          <h2 id="detail-title">Detalle de estación</h2>
+          <div id="detail"></div>
+          <h3 class="chart-h">Evolución del saldo (72 h)</h3>
+          <div id="chart-station" class="chart-md"></div>
+        </section>
+      </div>
+    </section>
+
+    <!-- PATRONES -->
+    <section id="view-patrones" class="view">
+      <section class="card">
+        <h2>Patrón hora × día — estrés de la red <i class="info" data-k="estres_red"></i></h2>
+        <p class="card-note">Promedio del % de estaciones críticas por hora del día y día de la semana. Revela cuándo se tensiona la ciudad.</p>
+        <div id="heatmap" class="chart-lg"></div>
+      </section>
+      <section class="card">
+        <h2>Resumen diario por estación</h2>
+        <p class="card-note">Mínimo, máximo y promedio del saldo, recargas detectadas y tiempo en crítico.</p>
+        <div id="daily" class="table-wrap"></div>
+      </section>
+    </section>
+
+    <!-- METODOLOGÍA -->
+    <section id="view-metodologia" class="view">
+      <section class="card">
+        <h2>Cómo funciona</h2>
+        <div class="prose" id="metodo-intro"></div>
+      </section>
+      <section class="card">
+        <h2>Diccionario de indicadores</h2>
+        <div id="metodo-indicadores" class="indic-grid"></div>
+      </section>
     </section>
   </main>
 
-  <section class="wrap card chart-card">
-    <h2>Evolución del saldo · <span id="chart-station">selecciona una estación</span></h2>
-    <div id="chart"></div>
-    <p class="muted small">Cada punto es una medición reportada por la fuente. Haz clic en una estación del mapa o de la lista.</p>
-  </section>
-
   <footer class="wrap">
-    <p>Datos extraídos automáticamente de la Guía Biopetrol. Proyecto de monitoreo · Centro de Estudios POPULI.
-       Volúmenes en litros; "alcanza para N vehículos" es la estimación de la fuente.</p>
+    <p>Datos extraídos automáticamente de la Guía Biopetrol cada 15 minutos · Centro de Estudios POPULI.
+       Hora de Bolivia (UTC-4). Las estimaciones de autonomía y despacho son aproximadas.</p>
   </footer>
+
+  <div id="tooltip" class="tooltip"></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+  <script src="data.js"></script>
+  <script src="views.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
