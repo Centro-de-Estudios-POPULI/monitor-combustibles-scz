@@ -3,7 +3,29 @@ const SANTA_CRUZ = [-17.7833, -63.1821];
 const COLORS = { crit: '#e5484d', low: '#f5a623', mid: '#f6d31b', high: '#33c27f' };
 
 const state = { pid: 134, selected: null, data: null, stations: null, series: null };
-let map, markerLayer, chart;
+let map, markerLayer, chart, tileLayer;
+
+// ===== Tema (claro premium por defecto, con toggle persistente) =====
+const TILES = {
+  light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+  dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+};
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+}
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('tema', t); } catch (e) {}
+  if (tileLayer) tileLayer.setUrl(TILES[t]);
+  if (chart) renderChart();
+}
+function initTheme() {
+  let t = 'light';
+  try { t = localStorage.getItem('tema') || 'light'; } catch (e) {}
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('theme-toggle').onclick = () =>
+    applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
+}
 
 // Clasifica por "alcanza para N vehículos" (estimación de la fuente)
 function level(veh) {
@@ -23,6 +45,7 @@ async function load() {
   ]);
   state.data = latest; state.stations = stations; state.series = series;
   document.getElementById('updated').textContent = latest.actualizado;
+  initTheme();
   initMap();
   initChart();
   wireControls();
@@ -37,7 +60,7 @@ function current() {
 
 function initMap() {
   map = L.map('map', { scrollWheelZoom: false }).setView(SANTA_CRUZ, 11);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  tileLayer = L.tileLayer(TILES[currentTheme()], {
     attribution: '&copy; OpenStreetMap, &copy; CARTO', maxZoom: 19,
   }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
@@ -72,14 +95,16 @@ function renderKpis(list) {
     .join('');
 }
 
+let markersByKey = {};
 function renderMarkers(list) {
   markerLayer.clearLayers();
+  markersByKey = {};
   const pts = [];
   list.forEach(e => {
     if (e.lat == null || e.lng == null) return;
     const c = COLORS[level(e.vehiculos)];
     const m = L.circleMarker([e.lat, e.lng], {
-      radius: 9, color: '#0f1115', weight: 1.5, fillColor: c, fillOpacity: .92,
+      radius: 5, color: '#fff', weight: 1.5, fillColor: c, fillOpacity: .95,
     }).bindPopup(
       `<div class="pp-name">${e.nombre}</div>` +
       `<div class="pp-addr">${e.direccion || ''}</div>` +
@@ -88,6 +113,7 @@ function renderMarkers(list) {
     );
     m.on('click', () => { state.selected = keyOf(e); highlight(); renderChart(); });
     m.addTo(markerLayer);
+    markersByKey[keyOf(e)] = m;
     pts.push([e.lat, e.lng]);
   });
   if (pts.length) map.fitBounds(pts, { padding: [40, 40], maxZoom: 13 });
@@ -116,6 +142,12 @@ function renderList(list) {
 function highlight() {
   document.querySelectorAll('#list .row').forEach(r =>
     r.classList.toggle('active', r.dataset.key === state.selected));
+  Object.entries(markersByKey).forEach(([k, m]) => {
+    const sel = k === state.selected;
+    m.setRadius(sel ? 8 : 5);
+    m.setStyle({ weight: sel ? 2.5 : 1.5 });
+    if (sel) m.bringToFront();
+  });
 }
 
 function initChart() {
@@ -130,25 +162,30 @@ function renderChart() {
     e ? `${e.nombre} · ${e.producto}` : 'sin datos';
   const raw = (state.series && state.series[key]) || [];
   const data = raw.map(([t, v]) => [t.replace(' ', 'T'), v]);
+  const cs = getComputedStyle(document.documentElement);
+  const muted = cs.getPropertyValue('--muted').trim();
+  const axis = cs.getPropertyValue('--axis').trim();
+  const grid = cs.getPropertyValue('--grid').trim();
+  const accent = cs.getPropertyValue('--accent').trim();
+  const dark = currentTheme() === 'dark';
   chart.setOption({
-    grid: { left: 56, right: 18, top: 18, bottom: 40 },
+    grid: { left: 58, right: 18, top: 18, bottom: 40 },
     tooltip: { trigger: 'axis', valueFormatter: v => fmt(v) + ' L' },
-    xAxis: { type: 'time', axisLine: { lineStyle: { color: '#3a4150' } },
-      axisLabel: { color: '#9aa3b2' } },
-    yAxis: { type: 'value', name: 'Litros', nameTextStyle: { color: '#9aa3b2' },
-      axisLabel: { color: '#9aa3b2', formatter: v => v.toLocaleString('es-BO') },
-      splitLine: { lineStyle: { color: '#222831' } } },
+    xAxis: { type: 'time', axisLine: { lineStyle: { color: axis } },
+      axisLabel: { color: muted } },
+    yAxis: { type: 'value', name: 'Litros', nameTextStyle: { color: muted },
+      axisLabel: { color: muted, formatter: v => v.toLocaleString('es-BO') },
+      splitLine: { lineStyle: { color: grid } } },
     series: [{
       type: 'line', smooth: true, showSymbol: raw.length < 40, symbolSize: 5,
-      data, lineStyle: { color: '#3da5ff', width: 2 },
-      areaStyle: { color: 'rgba(61,165,255,.14)' }, itemStyle: { color: '#3da5ff' },
+      data, lineStyle: { color: accent, width: 2.2 },
+      areaStyle: { color: dark ? 'rgba(91,157,255,.16)' : 'rgba(31,95,224,.10)' },
+      itemStyle: { color: accent },
     }],
-  }, true);
-  if (raw.length <= 1) {
-    chart.setOption({ graphic: { type: 'text', left: 'center', top: 'middle',
+    graphic: raw.length <= 1 ? { type: 'text', left: 'center', top: 'middle',
       style: { text: 'Aún se está acumulando histórico\n(vuelve en unas horas)',
-        fill: '#9aa3b2', fontSize: 13, textAlign: 'center' } } });
-  }
+        fill: muted, fontSize: 13, textAlign: 'center' } } : [],
+  }, true);
 }
 
 function wireControls() {
