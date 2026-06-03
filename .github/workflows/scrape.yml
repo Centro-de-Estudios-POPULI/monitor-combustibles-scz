@@ -2,7 +2,7 @@ name: Scrape saldos (cada hora)
 
 on:
   schedule:
-    - cron: "5 * * * *"   # minuto 5 de cada hora (UTC)
+    - cron: "*/15 * * * *"   # cada 15 minutos (UTC). El cron de Actions puede retrasarse en horas pico.
   workflow_dispatch:        # permite ejecutarlo a mano
 
 permissions:
