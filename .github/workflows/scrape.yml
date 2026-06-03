@@ -1,10 +1,12 @@
-name: Scrape saldos (cada 15 min)
+name: Scrape saldos (cada 30 min)
 
 on:
   schedule:
-    # GitHub coalesce/retrasa crons; ponemos varios minutos para mejorar la fiabilidad.
-    - cron: "2,17,32,47 * * * *"   # ~cada 15 min (UTC)
-  workflow_dispatch:        # permite ejecutarlo a mano
+    # GitHub coalesce/retrasa crons; minutos desfasados (no en :00) para mejorar fiabilidad.
+    # OJO: el scheduler de GitHub es poco fiable; el disparo real lo hace un pinger externo
+    # (cron-job.org -> API workflow_dispatch). Este cron queda como respaldo.
+    - cron: "7,37 * * * *"   # ~cada 30 min (UTC)
+  workflow_dispatch:        # permite ejecutarlo a mano (y lo usa el pinger externo)
 
 permissions:
   contents: write
