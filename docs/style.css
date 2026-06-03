@@ -227,7 +227,6 @@ tr:hover td{background:var(--panel2)}
   .nav-center{display:none}
   .navbar-inner{grid-template-columns:auto 1fr}
   html{scroll-padding-top:118px}
-  .map-grid{display:flex;flex-direction:column}
   .list{max-height:340px}
 }
 /* ===== Móvil ===== */

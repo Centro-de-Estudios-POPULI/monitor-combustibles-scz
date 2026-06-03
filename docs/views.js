@@ -120,6 +120,9 @@ function ensureMap() {
   map = L.map('map', { scrollWheelZoom: false, zoomSnap: 0.25 }).setView(CITY_CENTER, CITY_ZOOM);
   tileLayer = L.tileLayer(TILES[theme()], { attribution: '&copy; OpenStreetMap, &copy; CARTO', maxZoom: 19 }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
+  // re-ajusta las teselas si el contenedor cambia de tamaño (móvil/rotación/reflow)
+  const el = document.getElementById('map');
+  if (window.ResizeObserver) new ResizeObserver(() => map.invalidateSize()).observe(el);
 }
 function renderMapa() {
   ensureMap();
