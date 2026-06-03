@@ -1,8 +1,9 @@
-name: Scrape saldos (cada hora)
+name: Scrape saldos (cada 15 min)
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # cada 15 minutos (UTC). El cron de Actions puede retrasarse en horas pico.
+    # GitHub coalesce/retrasa crons; ponemos varios minutos para mejorar la fiabilidad.
+    - cron: "2,17,32,47 * * * *"   # ~cada 15 min (UTC)
   workflow_dispatch:        # permite ejecutarlo a mano
 
 permissions:

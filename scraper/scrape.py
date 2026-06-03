@@ -181,11 +181,14 @@ def main():
         try:
             recs = parse(fetch(pid), pid)
             print(f"producto {pid} ({PRODUCTOS[pid]}): {len(recs)} estaciones")
+            if not recs:
+                print(f"ADVERTENCIA: producto {pid} ({PRODUCTOS[pid]}) devolvió 0 estaciones "
+                      f"(¿cambió el formato de la fuente?)", file=sys.stderr)
             records.extend(recs)
         except Exception as e:  # noqa: BLE001
             print(f"ERROR producto {pid}: {e}", file=sys.stderr)
     if not records:
-        print("Sin datos; abortando para no pisar archivos.", file=sys.stderr)
+        print("Sin datos de ningún producto; abortando para no pisar archivos.", file=sys.stderr)
         sys.exit(1)
 
     actualizado = max(r["fecha"] for r in records)
