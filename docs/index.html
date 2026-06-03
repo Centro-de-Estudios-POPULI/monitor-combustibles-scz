@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
   <!-- ===== NAVBAR ===== -->
@@ -82,7 +82,8 @@
       <div class="map-grid">
         <section class="card map-card"><div id="map"></div></section>
         <section class="card">
-          <input id="search" class="search" type="search" placeholder="Buscar estación o dirección…">
+          <h3 class="list-title">Estaciones <span id="list-count" class="muted"></span></h3>
+          <p class="card-note">Selecciona una para verla en el mapa y ver su detalle.</p>
           <div id="list" class="list"></div>
         </section>
       </div>
@@ -174,8 +175,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-  <script src="data.js?v=4"></script>
-  <script src="views.js?v=4"></script>
-  <script src="app.js?v=4"></script>
+  <script src="data.js?v=5"></script>
+  <script src="views.js?v=5"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

@@ -45,7 +45,6 @@ function wire() {
     S.selected = null;
     renderAll();
   });
-  document.getElementById('search').oninput = () => renderEstaciones();
   document.getElementById('color-by').onchange = () => renderMapa();
 }
 

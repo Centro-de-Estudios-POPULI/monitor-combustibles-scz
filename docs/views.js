@@ -58,9 +58,11 @@ const TILES = {
   light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
   dark: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
 };
+// Vista por defecto: ciudad de Santa Cruz dentro del 4º anillo
+const CITY_CENTER = [-17.7833, -63.1821], CITY_ZOOM = 13;
 function ensureMap() {
   if (map) { map.invalidateSize(); return; }
-  map = L.map('map', { scrollWheelZoom: false }).setView(SANTA_CRUZ, 11);
+  map = L.map('map', { scrollWheelZoom: false, zoomSnap: 0.25 }).setView(CITY_CENTER, CITY_ZOOM);
   tileLayer = L.tileLayer(TILES[theme()], { attribution: '&copy; OpenStreetMap, &copy; CARTO', maxZoom: 19 }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
 }
@@ -82,16 +84,20 @@ function renderMapa() {
     markersByKey[keyOf(e)] = mk;
     pts.push([e.lat, e.lng]);
   });
-  if (pts.length) map.fitBounds(pts, { padding: [40, 40], maxZoom: 13 });
   highlightMarker();
+}
+function gmapsUrl(e) {
+  return `https://www.google.com/maps/search/?api=1&query=${e.lat},${e.lng}`;
 }
 function popupHtml(e, m) {
   const eta = m.eta_horas != null
     ? `<div class="pp-eta" style="color:${estadoColor(etaBucket(m.eta_horas))}">Se agota en ~${m.eta_horas} h</div>` : '';
+  const link = e.lat != null
+    ? `<a class="pp-link" target="_blank" rel="noopener" href="${gmapsUrl(e)}">Cómo llegar · Google Maps ↗</a>` : '';
   return `<div class="pp-name">${e.nombre}${e.stale ? ' <span class="tag-stale">dato viejo</span>' : ''}</div>
     <div class="pp-addr">${e.direccion || ''}</div>
     <div class="pp-saldo">${fmtL(e.saldo)}</div>
-    <div class="pp-veh">Alcanza para ~${fmt(Math.round(e.vehiculos))} vehículos</div>${eta}`;
+    <div class="pp-veh">Alcanza para ~${fmt(Math.round(e.vehiculos))} vehículos</div>${eta}${link}`;
 }
 function renderLegend(mode) {
   const items = mode === 'eta'
@@ -110,10 +116,9 @@ function highlightMarker() {
 
 // ---------- ESTACIONES ----------
 function renderEstaciones() {
-  const q = (document.getElementById('search').value || '').toLowerCase();
-  const list = estaciones().filter(e =>
-    !q || e.nombre.toLowerCase().includes(q) || (e.direccion || '').toLowerCase().includes(q));
-  document.getElementById('list-count').textContent = `(${list.length})`;
+  const list = estaciones();   // todas las del combustible seleccionado
+  const lc = document.getElementById('list-count');
+  if (lc) lc.textContent = `(${list.length})`;
   document.getElementById('list').innerHTML = list.map(e => {
     const c = estadoColor(e.estado);
     return `<div class="row" data-key="${keyOf(e)}">
@@ -152,6 +157,22 @@ function markActiveRow() {
   document.querySelectorAll('#list .row').forEach(r =>
     r.classList.toggle('active', r.dataset.key === S.selected));
 }
+// promedio del saldo en las ultimas `hours` horas (desde series_recent)
+function avgRecent(key, hours = 24) {
+  const raw = (S.series && S.series[key]) || [];
+  if (raw.length < 2) return null;
+  const last = new Date(raw[raw.length - 1][0].replace(' ', 'T')).getTime();
+  const cut = last - hours * 3600e3;
+  const vals = raw.filter(([t]) => new Date(t.replace(' ', 'T')).getTime() >= cut).map(([, v]) => v);
+  if (vals.length < 2) return null;
+  return { avg: vals.reduce((a, b) => a + b, 0) / vals.length, n: vals.length, hours };
+}
+function deltaHtml(cur, avg) {
+  if (avg == null || avg === 0) return '';
+  const pct = Math.round((cur - avg) / avg * 100);
+  if (pct === 0) return '<span class="dlt flat">≈ prom</span>';
+  return `<span class="dlt ${pct > 0 ? 'up' : 'down'}">${pct > 0 ? '▲' : '▼'} ${Math.abs(pct)}% vs prom 24h</span>`;
+}
 function renderDetail() {
   const e = estaciones().find(x => keyOf(x) === S.selected);
   const box = document.getElementById('detail');
@@ -160,25 +181,32 @@ function renderDetail() {
   document.getElementById('detail-title').textContent = 'Detalle · ' + e.nombre;
   const badge = `<span class="badge" style="background:${estadoColor(e.estado)}">${ESTADO_LABEL[e.estado] || e.estado}</span>`;
   const rec = m.ultima_recarga ? `${fmt(m.ultima_recarga.delta)} L · ${m.ultima_recarga.t.slice(5, 16)}` : '—';
+  const ar = avgRecent(keyOf(e), 24);
+  const sDelta = ar ? deltaHtml(e.saldo, ar.avg) : '<span class="dlt flat">acumulando</span>';
   const cells = [
-    ['saldo', fmtL(e.saldo)], ['vehiculos', fmt(Math.round(e.vehiculos))],
-    ['despacho_lh', m.despacho_lh != null ? fmt(m.despacho_lh) + ' L/h' : '—'],
-    ['eta_horas', m.eta_horas != null ? m.eta_horas + ' h' : '—'],
-    ['saldo_por_manguera', m.saldo_por_manguera != null ? fmtL(m.saldo_por_manguera) : '—'],
-    ['capacidad_lh', m.capacidad_lh != null ? fmt(m.capacidad_lh) + ' L/h' : '—'],
-    ['saturacion', m.saturacion != null ? m.saturacion : '—'],
-    ['vaciado_plena_h', m.vaciado_plena_h != null ? m.vaciado_plena_h + ' h' : '—'],
-    ['uptime_hoy', m.uptime_hoy != null ? m.uptime_hoy + '%' : '—'],
-    ['pct_critico_hoy', m.pct_critico_hoy != null ? m.pct_critico_hoy + '%' : '—'],
-    ['ultima_recarga', rec],
+    { k: 'saldo', v: fmtL(e.saldo), extra: sDelta },
+    { k: 'vehiculos', v: fmt(Math.round(e.vehiculos)), extra: sDelta },
+    { label: 'Saldo prom. (24 h)', v: ar ? fmtL(Math.round(ar.avg)) : '—' },
+    { k: 'despacho_lh', v: m.despacho_lh != null ? fmt(m.despacho_lh) + ' L/h' : '—' },
+    { k: 'eta_horas', v: m.eta_horas != null ? m.eta_horas + ' h' : '—' },
+    { k: 'saldo_por_manguera', v: m.saldo_por_manguera != null ? fmtL(m.saldo_por_manguera) : '—' },
+    { k: 'capacidad_lh', v: m.capacidad_lh != null ? fmt(m.capacidad_lh) + ' L/h' : '—' },
+    { k: 'saturacion', v: m.saturacion != null ? m.saturacion : '—' },
+    { k: 'uptime_hoy', v: m.uptime_hoy != null ? m.uptime_hoy + '%' : '—' },
+    { k: 'ultima_recarga', v: rec },
   ];
-  box.innerHTML = `<div class="detail-head"><div>${badge}${e.stale ? ' <span class="tag-stale">dato viejo</span>' : ''}</div></div>
+  const gmaps = e.lat != null
+    ? `<a class="gmaps-btn" target="_blank" rel="noopener" href="${gmapsUrl(e)}"><svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>Cómo llegar</a>` : '';
+  box.innerHTML = `<div class="detail-head">
+      <div>${badge}${e.stale ? ' <span class="tag-stale">dato viejo</span>' : ''}</div>${gmaps}</div>
     <p class="detail-addr">${e.direccion || ''} · ${e.mangueras || '?'} mangueras · ${relTime(e.fecha)}</p>
-    <div class="metrics-grid">${cells.map(([k, v]) =>
-      `<div class="metric"><div class="mv">${v}</div><div class="ml">${indic(k).nombre} ${infoIcon(k)}</div></div>`).join('')}</div>`;
-  renderStationChart(e, m);
+    <div class="metrics-grid">${cells.map(c =>
+      `<div class="metric"><div class="mv">${c.v}</div>
+        ${c.extra ? `<div class="cmp">${c.extra}</div>` : ''}
+        <div class="ml">${c.label || indic(c.k).nombre} ${c.k ? infoIcon(c.k) : ''}</div></div>`).join('')}</div>`;
+  renderStationChart(e, m, ar);
 }
-function renderStationChart(e, m) {
+function renderStationChart(e, m, ar) {
   const raw = (S.series && S.series[keyOf(e)]) || [];
   const data = raw.map(([t, v]) => [t.replace(' ', 'T'), v]);
   const marks = (m.recargas || []).map(r => ({
@@ -186,6 +214,11 @@ function renderStationChart(e, m) {
     label: { formatter: '+' + fmt(r.delta) + ' L', color: cssVar('high'), fontSize: 10 },
     lineStyle: { color: cssVar('high'), type: 'dashed' },
   }));
+  if (ar) marks.push({
+    yAxis: Math.round(ar.avg),
+    label: { formatter: 'prom 24h', color: cssVar('muted'), fontSize: 10, position: 'insideEndTop' },
+    lineStyle: { color: cssVar('muted'), type: 'dotted' },
+  });
   lineChart('chart-station', data, {
     area: true, suffix: ' L',
     markLine: marks.length ? { symbol: 'none', data: marks } : null,
