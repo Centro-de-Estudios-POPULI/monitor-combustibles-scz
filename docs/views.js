@@ -292,11 +292,7 @@ function renderHero() {
 
 // ---------- render de toda la página ----------
 function renderAll() {
-  renderHero();
-  renderEstaciones();   // fija la estación seleccionada por defecto
-  renderMapa();         // marcadores + resalta la seleccionada
-  renderResumen();
-  renderPatrones();
-  renderMetodologia();
+  const steps = [renderHero, renderEstaciones, renderMapa, renderResumen, renderPatrones, renderMetodologia];
+  steps.forEach(fn => { try { fn(); } catch (e) { console.error('Error en', fn.name, e); } });
   setTimeout(() => Object.values(charts).forEach(c => c.resize()), 40);
 }
