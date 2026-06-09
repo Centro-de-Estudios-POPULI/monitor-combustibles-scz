@@ -238,10 +238,11 @@ tr:hover td{background:var(--panel2)}
   .nav-meta{font-size:10px}
   .navbar{top:0}.subnav{top:54px}
   html{scroll-padding-top:150px}
-  /* toggle de combustible: cinta propia arriba, ancho completo, siempre visible */
+  /* toggles (combustible + marca): cinta propia arriba, ancho completo, siempre visibles */
   .subnav-inner{flex-direction:column;gap:0;padding:7px 0;min-height:0}
-  #producto-seg{order:-1;width:100%;margin-bottom:7px}
-  #producto-seg .seg-btn{flex:1;padding:9px 0;font-size:.88rem}
+  .segs{order:-1;width:100%;flex-direction:column;gap:7px;margin-bottom:7px}
+  .segs .seg{width:100%}
+  .segs .seg-btn{flex:1;padding:9px 0;font-size:.86rem}
   .anchors{width:100%}
   .hero{padding:30px 16px 34px}
   .hero-kicker{font-size:10px;letter-spacing:1px}
@@ -263,4 +264,72 @@ tr:hover td{background:var(--panel2)}
 }
 @media(max-width:380px){
   .kpis,.metrics-grid{grid-template-columns:1fr}
+}
+
+/* ===== Multi-marca (Biopetrol + Genex) ===== */
+.segs{display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+/* píldora de marca */
+.mpill{display:inline-block;font-size:.6rem;font-weight:800;letter-spacing:.4px;text-transform:uppercase;
+  padding:1px 6px;border-radius:6px;vertical-align:middle}
+.mpill.m-biopetrol{background:var(--accent-soft);color:var(--accent)}
+.mpill.m-genex{background:rgba(212,146,10,.18);color:var(--low)}
+/* badge de cola de vehículos (Genex) */
+.cola{display:inline-block;font-size:.6rem;font-weight:700;color:#fff;padding:1px 6px;border-radius:6px;
+  vertical-align:middle}
+/* marcadores del mapa: la FORMA distingue la marca, el COLOR el estado */
+.mk-wrap{background:none;border:0}
+.mk{display:block;box-sizing:border-box;box-shadow:0 0 0 1.5px #fff,0 1px 3px rgba(0,0,0,.45)}
+.mk-circle{border-radius:50%}
+.mk-square{border-radius:2px}
+.mk-sel{box-shadow:0 0 0 2.5px #fff,0 2px 9px rgba(0,0,0,.55)}
+/* leyenda: separador + muestras de forma */
+.legend-sep{width:1px;align-self:stretch;background:var(--line);margin:0 4px}
+.legend-mk{display:inline-block;width:11px;height:11px;background:var(--muted);box-shadow:0 0 0 1px var(--line)}
+
+/* ===== Logo UPSA oficial (blanco sobre navbar/footer oscuros) ===== */
+.upsa-logo{height:30px;width:auto;flex-shrink:0;display:block}
+.foot-upsa{height:30px}
+@media(max-width:600px){ .upsa-logo{height:22px} }
+
+/* ===== Ayuda / cómo usar ===== */
+.help-banner{display:flex;align-items:center;gap:14px;justify-content:space-between;
+  background:var(--accent-soft);border:1px solid var(--line);border-left:4px solid var(--accent);
+  border-radius:12px;padding:12px 15px;margin:16px 0 6px}
+.help-banner[hidden]{display:none}
+.help-text{font-size:.86rem;color:var(--txt2);line-height:1.55}
+.help-text b{color:var(--txt)}
+.help-close{flex-shrink:0;background:var(--accent);color:#fff;border:0;border-radius:8px;
+  padding:7px 12px;font:inherit;font-weight:600;font-size:.8rem;cursor:pointer;white-space:nowrap}
+.help-close:hover{filter:brightness(1.08)}
+
+/* ===== Recomendación por ubicación ===== */
+.reco{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:12px}
+.reco-head{display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap}
+.reco-intro{font-size:.88rem;color:var(--txt2)}
+.reco-intro b{color:var(--txt)}
+.reco-btn{flex-shrink:0;background:var(--accent);color:#fff;border:0;border-radius:9px;
+  padding:9px 16px;font:inherit;font-weight:700;font-size:.85rem;cursor:pointer}
+.reco-btn:hover{filter:brightness(1.08)}
+.reco-btn:disabled{opacity:.6;cursor:default}
+.reco-result{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.reco-result:empty{display:none}
+.reco-card{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:10px 12px;cursor:pointer;transition:.15s}
+.reco-card:hover{border-color:var(--accent);box-shadow:var(--shadow-sm)}
+.reco-card.best{border-color:var(--accent);background:var(--accent-soft)}
+.reco-rank{flex-shrink:0;width:26px;height:26px;display:grid;place-items:center;border-radius:50%;
+  background:var(--accent);color:#fff;font-weight:800;font-size:.85rem}
+.reco-card.best .reco-rank{background:var(--low)}
+.reco-body{flex:1;min-width:0}
+.reco-name{font-weight:700;font-size:.86rem;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reco-meta{font-size:.78rem;color:var(--muted);margin-top:2px}
+.reco-go{flex-shrink:0;color:var(--accent);font-weight:700;font-size:.8rem;text-decoration:none;white-space:nowrap}
+.reco-go:hover{text-decoration:underline}
+.reco-empty{font-size:.85rem;color:var(--muted);grid-column:1/-1;padding:4px 2px}
+@media(max-width:700px){ .reco-result{grid-template-columns:1fr} }
+@media(max-width:600px){
+  .help-banner{flex-direction:column;align-items:flex-start;gap:10px}
+  .help-close{align-self:flex-end}
+  .reco-head{flex-direction:column;align-items:stretch}
+  .reco-btn{width:100%}
 }

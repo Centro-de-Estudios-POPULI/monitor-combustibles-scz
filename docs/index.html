@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
   <!-- ===== NAVBAR ===== -->
@@ -21,11 +21,7 @@
           <text x="92" y="87" font-family="'Playfair Display',Georgia,serif" font-size="55" font-weight="400" font-style="italic" letter-spacing="1" class="logo-opuli">opuli</text>
         </svg>
         <span class="nav-divider"></span>
-        <svg class="logo-svg logo-upsa-svg" viewBox="0 0 300 130" aria-label="UPSA">
-          <text x="2" y="84" font-family="Inter,sans-serif" font-size="84" font-weight="800" letter-spacing="-3" class="logo-upsa">UPSA</text>
-          <rect x="5" y="96" width="244" height="5" class="logo-upsa-bar"/>
-          <text x="6" y="121" font-family="Inter,sans-serif" font-size="15" letter-spacing="2" class="logo-upsa-sub">UNIV. PRIVADA SANTA CRUZ</text>
-        </svg>
+        <img src="upsa.svg?v=10" class="upsa-logo" alt="UPSA · Universidad Privada de Santa Cruz" />
       </div>
       <div class="nav-center">Monitor de Combustibles · Santa Cruz</div>
       <div class="nav-right">
@@ -44,9 +40,9 @@
     <div class="hero-inner">
       <p class="hero-kicker">Centro de Estudios de Políticas Públicas para la Libertad · UPSA</p>
       <h1>Monitor de Saldos de Combustible <em>· Santa Cruz</em></h1>
-      <p class="hero-desc">Seguimiento en tiempo casi real de los saldos de gasolina y diésel en las
-        estaciones Biopetrol, con mapa interactivo, indicadores de abastecimiento y series históricas.
-        Actualizado cada 15 minutos.</p>
+      <p class="hero-desc">Seguimiento en tiempo casi real de los saldos de combustible en las estaciones
+        <b>Biopetrol</b> y <b>Genex</b> de Santa Cruz y Montero: gasolina especial, premium, diésel y GNV,
+        con mapa interactivo, indicadores de abastecimiento y series históricas. Actualizado cada 15 minutos.</p>
       <div class="hero-stats" id="hero-stats"></div>
     </div>
   </header>
@@ -60,14 +56,34 @@
         <a href="#patrones" class="anchor">Patrones</a>
         <a href="#metodologia" class="anchor">Metodología</a>
       </div>
-      <div class="seg" id="producto-seg">
-        <button class="seg-btn active" data-pid="134">Gasolina</button>
-        <button class="seg-btn" data-pid="132">Diésel</button>
+      <div class="segs">
+        <div class="seg" id="producto-seg">
+          <button class="seg-btn active" data-pid="134">Gasolina</button>
+          <button class="seg-btn" data-pid="200">Premium</button>
+          <button class="seg-btn" data-pid="132">Diésel</button>
+          <button class="seg-btn" data-pid="300">GNV</button>
+        </div>
+        <div class="seg seg-marca" id="marca-seg">
+          <button class="seg-btn active" data-marca="todas">Ambas</button>
+          <button class="seg-btn" data-marca="biopetrol">Biopetrol</button>
+          <button class="seg-btn" data-marca="genex">Genex</button>
+        </div>
       </div>
     </div>
   </div>
 
   <main class="wrap">
+    <!-- AYUDA / CÓMO USAR (descartable) -->
+    <div class="help-banner" id="help-banner" hidden>
+      <div class="help-text">
+        <b>👋 ¿Cómo usar el monitor?</b>
+        <span>Elegí el <b>combustible</b> (gasolina, premium, diésel o GNV) y la <b>marca</b> en la barra de arriba ·
+          tocá una estación en el mapa o la lista para ver su <b>detalle</b> y evolución ·
+          usá <b>📍 Mi ubicación</b> para que te recomiende la estación con stock más cercana.</span>
+      </div>
+      <button id="help-close" class="help-close" aria-label="Cerrar ayuda">Entendido ✕</button>
+    </div>
+
     <!-- MAPA + LISTA INTERACTIVA -->
     <section id="mapa" class="block">
       <div class="block-head">
@@ -80,6 +96,14 @@
         </label>
       </div>
       <div class="legend" id="legend"></div>
+      <div class="reco" id="reco">
+        <div class="reco-head">
+          <div class="reco-intro">📍 <b>¿Dónde cargar ahora?</b> Te recomiendo la estación con stock más cercana
+            de <b id="reco-prod">gasolina</b>.</div>
+          <button id="reco-btn" class="reco-btn">Usar mi ubicación</button>
+        </div>
+        <div id="reco-result" class="reco-result"></div>
+      </div>
       <div class="map-grid">
         <section class="card map-card"><div id="map"></div></section>
         <section class="card">
@@ -119,8 +143,8 @@
         </section>
       </div>
       <section class="card">
-        <h3>Gasolina vs Diésel — disponibilidad ahora</h3>
-        <p class="card-note">Comparación del abastecimiento actual entre ambos combustibles.</p>
+        <h3>Comparación por combustible — ahora</h3>
+        <p class="card-note">Abastecimiento actual de cada combustible (respeta el filtro de marca).</p>
         <div id="compare" class="compare"></div>
       </section>
     </section>
@@ -161,14 +185,11 @@
           <text x="92" y="87" font-family="'Playfair Display',Georgia,serif" font-size="55" font-weight="400" font-style="italic" letter-spacing="1" class="logo-opuli">opuli</text>
         </svg>
         <span class="nav-divider"></span>
-        <svg class="logo-svg foot-logo logo-upsa-svg" viewBox="0 0 300 130" aria-label="UPSA">
-          <text x="2" y="84" font-family="Inter,sans-serif" font-size="84" font-weight="800" letter-spacing="-3" class="logo-upsa">UPSA</text>
-          <rect x="5" y="96" width="244" height="5" class="logo-upsa-bar"/>
-          <text x="6" y="121" font-family="Inter,sans-serif" font-size="15" letter-spacing="2" class="logo-upsa-sub">UNIV. PRIVADA SANTA CRUZ</text>
-        </svg>
+        <img src="upsa.svg?v=10" class="upsa-logo foot-upsa" alt="UPSA · Universidad Privada de Santa Cruz" />
       </div>
-      <p>Datos extraídos automáticamente de la Guía Biopetrol cada 15 minutos · Centro de Estudios POPULI · UPSA.
-         Hora de Bolivia (UTC-4). Las estimaciones de autonomía, despacho y tiempo de agotamiento son aproximadas.</p>
+      <p>Datos extraídos automáticamente de la Guía Biopetrol y del portal de estaciones Genex cada 15 minutos ·
+         Centro de Estudios POPULI · UPSA. Hora de Bolivia (UTC-4). Las estimaciones de autonomía, despacho y
+         tiempo de agotamiento son aproximadas.</p>
     </div>
   </footer>
 
@@ -176,8 +197,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-  <script src="data.js?v=8"></script>
-  <script src="views.js?v=8"></script>
-  <script src="app.js?v=8"></script>
+  <script src="data.js?v=10"></script>
+  <script src="views.js?v=10"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

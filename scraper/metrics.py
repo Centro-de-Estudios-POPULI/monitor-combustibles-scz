@@ -239,7 +239,8 @@ def stacked_series(grouped, pid, stations_meta, max_days=7, bucket_min=60):
                     break
             data.append(val if val is not None else 0)
         meta = stations_meta.get(str(un), {})
-        series.append({"un": un, "nombre": meta.get("nombre", f"UN-{un}"), "data": data})
+        series.append({"un": un, "nombre": meta.get("nombre", f"UN-{un}"),
+                       "marca": meta.get("marca"), "data": data})
     return {"t": times, "series": series}
 
 
@@ -276,7 +277,9 @@ def daily_rollups(grouped, stations_meta, days=2):
     for d in recientes:
         rows = []
         for (un, pid), pts in by_day[d].items():
-            saldos = [s for _, s, _ in pts]
+            saldos = [s for _, s, _ in pts if s is not None]
+            if not saldos:          # GNV u otros sin litros: no aplica resumen de saldo
+                continue
             refills = detect_refills(sorted(pts))
             meta = stations_meta.get(str(un), {})
             carga = CARGA_DEFAULT
@@ -372,5 +375,15 @@ INDICADORES = {
         "nombre": "Dato desactualizado",
         "unidad": "",
         "desc": "El sensor de esta estacion no reporta hace mas de 45 minutos; el saldo mostrado puede no ser confiable.",
+    },
+    "cola": {
+        "nombre": "Cola de vehiculos",
+        "unidad": "nivel",
+        "desc": "Longitud de la fila que reporta Genex para ese surtidor: sin cola, poca, hay o mucha cola. Es un indicio directo de la demanda en sitio (Biopetrol no lo publica).",
+    },
+    "disponibilidad": {
+        "nombre": "Disponibilidad de GNV",
+        "unidad": "disponible / agotado",
+        "desc": "Para el gas natural vehicular la fuente no reporta litros, solo si la estacion tiene GNV disponible o agotado. Por eso el GNV se muestra como mapa de disponibilidad y no con saldos.",
     },
 }

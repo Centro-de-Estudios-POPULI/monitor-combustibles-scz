@@ -1,15 +1,36 @@
 // ===== Estado global y utilidades =====
 const SANTA_CRUZ = [-17.7833, -63.1821];
-const PRODUCTOS = { 134: 'Gasolina Especial', 132: 'Diésel' };
+const PRODUCTOS = { 134: 'Gasolina Especial', 132: 'Diésel', 200: 'Gasolina Premium', 300: 'GNV' };
+const GNV_PID = 300;
+const isGnv = pid => Number(pid) === GNV_PID;
+// Marcas: el "shape" distingue la red en el mapa (Biopetrol círculo, Genex cuadrado).
+const MARCAS = {
+  biopetrol: { label: 'Biopetrol', shape: 'circle' },
+  genex: { label: 'Genex', shape: 'square' },
+};
+const marcaLabel = m => (MARCAS[m] && MARCAS[m].label) || m || '';
+// Cola de vehículos (señal de Genex): nivel 0..3.
+const COLA_LABEL = ['Sin cola', 'Poca cola', 'Hay cola', 'Mucha cola'];
+const COLA_VAR = ['high', 'mid', 'low', 'crit'];
 
 const S = {
-  pid: 134, view: 'resumen', selected: null,
+  pid: 134, marca: 'todas', view: 'resumen', selected: null,
   latest: null, metrics: null, series: null, redSeries: null, stacked: null, heatmap: null, daily: null,
 };
 
 // ---- formato ----
 const fmt = n => (n == null || isNaN(n) ? '—' : Number(n).toLocaleString('es-BO'));
 const fmtL = n => (n == null ? '—' : fmt(Math.round(n)) + ' L');
+// Abreviado en miles/millones para ahorrar espacio: 30542 -> "30,5k", 1240000 -> "1,2M".
+function fmtK(n) {
+  if (n == null || isNaN(n)) return '—';
+  n = Number(n);
+  const a = Math.abs(n);
+  if (a >= 1e6) return (n / 1e6).toLocaleString('es-BO', { maximumFractionDigits: 1 }) + 'M';
+  if (a >= 1000) return (n / 1000).toLocaleString('es-BO', { maximumFractionDigits: 1 }) + 'k';
+  return Math.round(n).toLocaleString('es-BO');
+}
+const fmtKL = n => (n == null || isNaN(n) ? '—' : fmtK(n) + ' L');
 function relTime(fechaStr) {
   if (!fechaStr) return '—';
   const t = new Date(fechaStr.replace(' ', 'T'));
@@ -37,13 +58,28 @@ function etaBucket(h) {
   return 'alto';
 }
 function colorFor(e, mode) {
+  if (isGnv(e.producto_id)) return estadoColor(e.disp ? 'alto' : 'critico');
   return mode === 'eta' ? estadoColor(etaBucket(e.eta_horas)) : estadoColor(e.estado);
+}
+// Etiqueta de cola (Genex). Devuelve '' si no aplica.
+function colaBadge(e) {
+  if (e.cola_nivel == null) return '';
+  return `<span class="cola" style="background:${cssVar(COLA_VAR[e.cola_nivel])}">${COLA_LABEL[e.cola_nivel]}</span>`;
+}
+function marcaPill(e) {
+  return `<span class="mpill m-${e.marca}">${marcaLabel(e.marca)}</span>`;
 }
 
 // ---- acceso a datos ----
 const theme = () => document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-const estaciones = () => S.latest.estaciones
-  .filter(e => e.producto_id === S.pid).sort((a, b) => b.saldo - a.saldo);
+// estaciones del producto seleccionado, aplicando el filtro de marca; orden por
+// saldo (litros) o por disponibilidad+nombre cuando es GNV (sin litros).
+const estaciones = () => {
+  let list = S.latest.estaciones.filter(e => e.producto_id === S.pid);
+  if (S.marca !== 'todas') list = list.filter(e => e.marca === S.marca);
+  if (isGnv(S.pid)) return list.sort((a, b) => (b.disp || 0) - (a.disp || 0) || a.nombre.localeCompare(b.nombre));
+  return list.sort((a, b) => (b.saldo || 0) - (a.saldo || 0));
+};
 const keyOf = e => `${e.un}-${e.producto_id}`;
 const metricOf = key => (S.metrics && S.metrics.estaciones[key]) || {};
 const indic = k => (S.metrics && S.metrics.indicadores[k]) || { nombre: k, desc: '', unidad: '' };

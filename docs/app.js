@@ -45,12 +45,36 @@ function wire() {
     S.selected = null;
     renderAll();
   });
+  document.querySelectorAll('#marca-seg .seg-btn').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#marca-seg .seg-btn').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    S.marca = b.dataset.marca;
+    S.selected = null;
+    renderAll();
+  });
   document.getElementById('color-by').onchange = () => renderMapa();
+  const recoBtn = document.getElementById('reco-btn');
+  if (recoBtn) recoBtn.onclick = requestLocation;
+}
+
+// ---- ayuda / cómo usar (descartable, recordada en localStorage) ----
+function initHelp() {
+  const banner = document.getElementById('help-banner');
+  const close = document.getElementById('help-close');
+  if (!banner || !close) return;
+  let dismissed = false;
+  try { dismissed = localStorage.getItem('help_dismissed') === '1'; } catch (e) {}
+  banner.hidden = dismissed;
+  close.onclick = () => {
+    banner.hidden = true;
+    try { localStorage.setItem('help_dismissed', '1'); } catch (e) {}
+  };
 }
 
 async function boot() {
   initTooltips();
   initTheme();
+  initHelp();
   await loadData();
   setUpdated();
   wire();

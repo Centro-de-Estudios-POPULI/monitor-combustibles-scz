@@ -1,22 +1,31 @@
 # Monitor de Combustibles · Santa Cruz
 
-Scraper + **dashboard de indicadores** que monitorea los **saldos de combustible**
-(gasolina especial y diésel) de las estaciones Biopetrol en Santa Cruz, Bolivia, con
-**georreferencia**. Los datos se extraen **cada 15 minutos**, se almacenan y se publican
-en un dashboard navegable con mapa, series temporales e indicadores derivados.
+Scraper + **dashboard de indicadores** que monitorea los **saldos de combustible** de las
+redes **Biopetrol** y **Genex** en Santa Cruz y Montero, Bolivia, con **georreferencia**:
+gasolina especial, gasolina premium, diésel y GNV. Los datos se extraen **cada 15 minutos**,
+se almacenan y se publican en un dashboard navegable con mapa, series temporales e
+indicadores derivados, con **filtro de marca** y vista unificada de ambas redes.
 
 🌐 **https://centro-de-estudios-populi.github.io/monitor-combustibles-scz/**
 
 > Centro de Estudios POPULI · scraper Python → JSON → mapa Leaflet + ECharts → GitHub Pages.
 
-## Fuente
+## Fuentes
 
-`http://ec2-3-22-240-207.us-east-2.compute.amazonaws.com/guiasaldos/main/donde/<producto_id>`
-(solo HTTP) · `134` = Gasolina Especial, `132` = Diésel.
+El monitor unifica dos redes (campo `marca` en todos los datos):
 
-Por estación se captura: nombre, dirección, **lat/lng**, saldo (L), hora de medición,
-mangueras, carga promedio y autonomía en vehículos. La fuente publica mediciones nuevas
-cada ~10–15 minutos, por eso el scraper corre cada 15.
+- **Biopetrol** — `http://ec2-3-22-240-207.us-east-2.compute.amazonaws.com/guiasaldos/main/donde/<producto_id>`
+  (solo HTTP) · `134` = Gasolina Especial, `132` = Diésel. Trae mangueras, carga promedio y
+  georreferencia embebida.
+- **Genex** — `https://genex.com.bo/estaciones/...` (tabla WooCommerce renderizada en servidor).
+  Productos: gasolina especial, **premium** (`200`), diésel y **GNV** (`300`). Aporta además la
+  **cola de vehículos** reportada. No publica mangueras ni coordenadas: las estaciones se
+  resuelven una vez a `scraper/genex_stations.json` (`un` sintético + lat/lng + ciudad).
+
+Productos internos: `134` especial, `132` diésel, `200` premium (litros), `300` GNV
+(solo disponible/agotado, sin litros → vista de disponibilidad). Por estación se captura:
+nombre, dirección, ciudad, **lat/lng**, marca, saldo (L), hora, y según la fuente mangueras,
+carga, autonomía en vehículos y cola.
 
 ## Indicadores
 
@@ -34,8 +43,10 @@ sección *Metodología* del dashboard):
 
 ```
 scraper/
-  scrape.py        Orquesta fetch + parse + almacenamiento + genera todos los JSON
-  metrics.py       Motor de indicadores (funciones puras, solo stdlib)
+  scrape.py            Orquesta ambas fuentes + parse + almacenamiento + genera todos los JSON
+  genex.py             Adaptador de la red Genex (fetch HTTPS + parse de la tabla)
+  genex_stations.json  Registro estático de estaciones Genex (un sintético, lat/lng, ciudad)
+  metrics.py           Motor de indicadores (funciones puras, solo stdlib)
 docs/              Dashboard (GitHub Pages, source = /docs)
   index.html  style.css  data.js  views.js  app.js
   data/
@@ -53,13 +64,18 @@ docs/              Dashboard (GitHub Pages, source = /docs)
 ## Dashboard (5 secciones)
 
 - **Resumen** — KPIs de la red con tendencia, estrés, stock total y comparación de combustibles.
-- **Mapa** — estaciones georreferenciadas, color por estado o por tiempo a agotarse.
+- **Mapa** — estaciones georreferenciadas; la **forma** distingue la marca (Biopetrol círculo,
+  Genex cuadrado) y el **color** el estado (o el tiempo a agotarse). Filtro de marca global.
 - **Estaciones** — lista buscable + panel de detalle con **todos los indicadores explicados**
   y gráfico de saldo con recargas marcadas.
 - **Patrones** — heatmap hora × día y tabla de resúmenes diarios.
 - **Metodología** — diccionario de cada indicador y cómo se calcula.
 
-Tema claro premium con **modo oscuro**, tooltips de ayuda, búsqueda y auto-refresco cada 5 min.
+Incluye además un **recomendador por ubicación** (📍 usa la geolocalización del navegador para
+sugerir la estación con stock más cercana del combustible elegido, mezclando cercanía y
+disponibilidad), un **mensaje de ayuda** descartable y litros abreviados en miles (`30,5k L`).
+
+Tema claro premium con **modo oscuro**, tooltips de ayuda y auto-refresco cada 5 min.
 
 ## Uso local
 
@@ -79,4 +95,10 @@ solo. Se puede lanzar a mano desde **Actions → Run workflow**.
 - Indicadores como despacho/ETA/recargas necesitan varias mediciones para poblarse; al
   inicio aparecen como “—” y se llenan con las horas.
 - Estaciones sin embed de mapa en la fuente aparecen en lista y gráficos, pero no en el mapa.
+- **GNV**: la fuente solo reporta disponible/agotado (sin litros), por eso se muestra como mapa
+  de disponibilidad + cola, sin series ni semáforo de litros.
+- **Genex** no publica mangueras → los indicadores que dependen de ellas (saldo por surtidor,
+  capacidad teórica, saturación) no aplican a esa red y aparecen como “—”.
+- Si Genex publica una estación nueva que no esté en `genex_stations.json`, el scraper la incluye
+  sin geo y avisa por stderr para agregarla.
 - Todo en **hora de Bolivia (UTC-4)**. Las estimaciones son aproximadas, no cifras oficiales.

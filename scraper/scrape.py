@@ -27,9 +27,18 @@ import urllib.request
 from datetime import datetime, timedelta
 
 import metrics as M
+import genex
 
 BASE = "http://ec2-3-22-240-207.us-east-2.compute.amazonaws.com/guiasaldos/main/donde/"
-PRODUCTOS = {"134": "GASOLINA ESPECIAL", "132": "DIESEL"}
+# Productos que publica Biopetrol (su fuente solo expone gasolina especial y diesel).
+BIO_PRODUCTOS = {"134": "GASOLINA ESPECIAL", "132": "DIESEL"}
+# Catalogo unificado del monitor (Biopetrol + Genex).
+#   134/132/200 se miden en litros (serie + semaforo completos).
+#   300 = GNV: la fuente solo da disponible/agotado (vista de disponibilidad, sin litros).
+PRODUCTOS = {"134": "GASOLINA ESPECIAL", "132": "DIESEL",
+             "200": "GASOLINA PREMIUM", "300": "GNV"}
+LITER_PRODUCTS = ("134", "132", "200")
+GNV_PID = 300
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.normpath(os.path.join(HERE, "..", "docs", "data"))
@@ -172,34 +181,82 @@ def load_history(days=20):
     return out
 
 
+def marca_breakdown(actuales, gnv=False):
+    """Desglosa un agregado de red por marca (biopetrol/genex) para el filtro de marca."""
+    out = {}
+    for marca in ("biopetrol", "genex"):
+        sub = [e for e in actuales if e.get("marca") == marca]
+        n = len(sub)
+        if not n:
+            continue
+        if gnv:
+            n_disp = sum(1 for e in sub if e.get("disp"))
+            out[marca] = {"n_total": n, "n_disp": n_disp, "n_agotado": n - n_disp,
+                          "estres": round(100 * (n - n_disp) / n, 1)}
+        else:
+            n_crit = sum(1 for e in sub if e["estado"] == "critico")
+            out[marca] = {
+                "n_total": n, "stock": sum((e["saldo"] or 0) for e in sub),
+                "n_con": sum(1 for e in sub if (e["saldo"] or 0) > 0),
+                "n_critico": n_crit, "vehiculos": round(sum((e["vehiculos"] or 0) for e in sub)),
+                "estres": round(100 * n_crit / n, 1),
+            }
+    return out
+
+
 # --------------------------- main ---------------------------
 def main():
     os.makedirs(DATA, exist_ok=True)
 
     records = []
-    for pid in PRODUCTOS:
+
+    # ---- Biopetrol ----
+    for pid in BIO_PRODUCTOS:
         try:
             recs = parse(fetch(pid), pid)
-            print(f"producto {pid} ({PRODUCTOS[pid]}): {len(recs)} estaciones")
+            print(f"biopetrol producto {pid} ({BIO_PRODUCTOS[pid]}): {len(recs)} estaciones")
             if not recs:
-                print(f"ADVERTENCIA: producto {pid} ({PRODUCTOS[pid]}) devolvió 0 estaciones "
+                print(f"ADVERTENCIA: biopetrol producto {pid} devolvió 0 estaciones "
                       f"(¿cambió el formato de la fuente?)", file=sys.stderr)
+            for r in recs:
+                r["marca"] = "biopetrol"
+                r["ciudad"] = "Santa Cruz"
+                r["cola"] = None
+                r["cola_nivel"] = None
+                r["disp"] = 1 if (r.get("saldo") or 0) > 0 else 0
             records.extend(recs)
         except Exception as e:  # noqa: BLE001
-            print(f"ERROR producto {pid}: {e}", file=sys.stderr)
+            print(f"ERROR biopetrol producto {pid}: {e}", file=sys.stderr)
+
+    # ---- Genex ----
+    try:
+        grecs = genex.scrape()
+        print(f"genex: {len(grecs)} records de {len(set(r['un'] for r in grecs))} estaciones")
+        if not grecs:
+            print("ADVERTENCIA: genex devolvió 0 records (¿cambió el formato de la web?)",
+                  file=sys.stderr)
+        records.extend(grecs)
+    except Exception as e:  # noqa: BLE001
+        print(f"ERROR genex: {e}", file=sys.stderr)
+
     if not records:
-        print("Sin datos de ningún producto; abortando para no pisar archivos.", file=sys.stderr)
+        print("Sin datos de ninguna fuente; abortando para no pisar archivos.", file=sys.stderr)
         sys.exit(1)
 
     actualizado = max(r["fecha"] for r in records)
 
     # ---- maestro geo ----
     stations = load_json("stations.json", {})
+    # Backfill: antes de Genex toda estacion era Biopetrol/Santa Cruz.
+    for s in stations.values():
+        s.setdefault("marca", "biopetrol")
+        s.setdefault("ciudad", "Santa Cruz")
     for r in records:
         k = str(r["un"])
         prev = stations.get(k, {})
         stations[k] = {
-            "un": r["un"], "nombre": r["nombre"],
+            "un": r["un"], "nombre": r["nombre"], "marca": r["marca"],
+            "ciudad": r.get("ciudad") or prev.get("ciudad", ""),
             "direccion": r["direccion"] or prev.get("direccion", ""),
             "lat": r["lat"] if r["lat"] is not None else prev.get("lat"),
             "lng": r["lng"] if r["lng"] is not None else prev.get("lng"),
@@ -219,23 +276,45 @@ def main():
 
     est_metrics = {}
     for key, pts in grouped.items():
-        attrs = attrs_by_key.get(key, {})
-        m = M.station_metrics(pts, attrs, global_latest)
+        un, pid = key
+        attrs = attrs_by_key.get(key)
+        if pid == GNV_PID:
+            # GNV: no hay litros; el "estado" es disponibilidad.
+            if not attrs:
+                continue
+            est_metrics[f"{un}-{pid}"] = {
+                "estado": "alto" if attrs.get("disp") else "seca",
+                "disp": attrs.get("disp"), "cola": attrs.get("cola"),
+                "cola_nivel": attrs.get("cola_nivel"), "fecha": attrs.get("fecha"),
+                "stale": False, "marca": attrs.get("marca"),
+            }
+            continue
+        m = M.station_metrics(pts, attrs or {}, global_latest)
         if m:
-            est_metrics[f"{key[0]}-{key[1]}"] = m
+            if attrs:
+                m["marca"] = attrs.get("marca")
+                m["cola"] = attrs.get("cola")
+                m["cola_nivel"] = attrs.get("cola_nivel")
+            est_metrics[f"{un}-{pid}"] = m
 
     # snapshot actual (latest.json) enriquecido con estado
     estaciones = []
     for r in records:
         key = f'{r["un"]}-{r["producto_id"]}'
         m = est_metrics.get(key, {})
+        if r["producto_id"] == GNV_PID:
+            estado = "alto" if r.get("disp") else "seca"
+        else:
+            estado = m.get("estado", M.estado(r["vehiculos"]))
         estaciones.append({
             "un": r["un"], "producto_id": r["producto_id"], "producto": r["producto"],
+            "marca": r["marca"], "ciudad": r.get("ciudad", ""),
             "nombre": r["nombre"], "direccion": r["direccion"],
             "lat": r["lat"], "lng": r["lng"], "fecha": r["fecha"],
             "saldo": r["saldo"], "vehiculos": r["vehiculos"],
-            "mangueras": r["mangueras"], "estado": m.get("estado", M.estado(r["vehiculos"])),
+            "mangueras": r["mangueras"], "estado": estado,
             "eta_horas": m.get("eta_horas"), "stale": m.get("stale", False),
+            "cola": r.get("cola"), "cola_nivel": r.get("cola_nivel"), "disp": r.get("disp"),
         })
     write_json("latest.json", {"actualizado": actualizado, "tz": "America/La_Paz (UTC-4)",
                                "estaciones": estaciones})
@@ -244,7 +323,10 @@ def main():
     corte = global_latest - timedelta(hours=RECENT_HOURS)
     series = {}
     for (un, pid), pts in grouped.items():
-        s = [[dt.strftime("%Y-%m-%d %H:%M:%S"), saldo] for dt, saldo, _ in pts if dt >= corte]
+        if pid == GNV_PID:        # el GNV no tiene serie de litros
+            continue
+        s = [[dt.strftime("%Y-%m-%d %H:%M:%S"), saldo]
+             for dt, saldo, _ in pts if dt >= corte and saldo is not None]
         if s:
             series[f"{un}-{pid}"] = s
     write_json("series_recent.json", series)
@@ -253,20 +335,31 @@ def main():
     red, red_series, heat, stacked = {}, {}, {}, {}
     for pid_s, nombre in PRODUCTOS.items():
         pid = int(pid_s)
+        actuales = [e for e in estaciones if e["producto_id"] == pid]
+        n = len(actuales)
+        if pid == GNV_PID:
+            # GNV: agregado de disponibilidad (sin litros / series).
+            n_disp = sum(1 for e in actuales if e.get("disp"))
+            red[pid_s] = {
+                "producto": nombre, "tipo": "gnv", "n_total": n,
+                "n_disp": n_disp, "n_agotado": n - n_disp,
+                "estres": round(100 * (n - n_disp) / n, 1) if n else 0,
+                "por_marca": marca_breakdown(actuales, gnv=True),
+            }
+            continue
         ns = M.network_series(grouped, pid)
         red_series[pid_s] = ns
         heat[pid_s] = M.heatmap_hora_dia(ns)
         stacked[pid_s] = M.stacked_series(grouped, pid, stations)
-        actuales = [e for e in estaciones if e["producto_id"] == pid]
-        n = len(actuales)
         red[pid_s] = {
-            "producto": nombre, "n_total": n,
-            "stock": sum(e["saldo"] for e in actuales),
-            "n_con": sum(1 for e in actuales if e["saldo"] > 0),
+            "producto": nombre, "tipo": "litros", "n_total": n,
+            "stock": sum((e["saldo"] or 0) for e in actuales),
+            "n_con": sum(1 for e in actuales if (e["saldo"] or 0) > 0),
             "n_critico": sum(1 for e in actuales if e["estado"] == "critico"),
-            "n_seca": sum(1 for e in actuales if e["saldo"] <= 0),
-            "vehiculos": round(sum(e["vehiculos"] for e in actuales)),
+            "n_seca": sum(1 for e in actuales if (e["saldo"] or 0) <= 0),
+            "vehiculos": round(sum((e["vehiculos"] or 0) for e in actuales)),
             "estres": round(100 * sum(1 for e in actuales if e["estado"] == "critico") / n, 1) if n else 0,
+            "por_marca": marca_breakdown(actuales, gnv=False),
         }
     write_json("red_series.json", red_series)
     write_json("stock_stacked.json", stacked)
@@ -277,6 +370,7 @@ def main():
         "actualizado": actualizado, "tz": "America/La_Paz (UTC-4)",
         "umbrales": {"crit_veh": M.CRIT_VEH, "low_veh": M.LOW_VEH, "mid_veh": M.MID_VEH,
                      "stale_min": M.STALE_MIN},
+        "productos": PRODUCTOS, "gnv_pid": GNV_PID, "liter_products": list(LITER_PRODUCTS),
         "red": red, "estaciones": est_metrics, "indicadores": M.INDICADORES,
     })
 
