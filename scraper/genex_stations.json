@@ -1,14 +1,69 @@
 {
-  "_comment": "Registro estatico de estaciones Genex: nombre tal como lo publica la web -> un sintetico estable (9001+), coords (resueltas 1 vez desde los links maps.app.goo.gl) y ciudad. Si la web publica una estacion nueva que no este aqui, el scraper la incluye sin geo y avisa por stderr para agregarla.",
-  "GENEX I":          { "un": 9001, "lat": -17.7822328, "lng": -63.1779019, "ciudad": "Santa Cruz" },
-  "GENEX II":         { "un": 9002, "lat": -17.7821545, "lng": -63.1779019, "ciudad": "Santa Cruz" },
-  "GENEX III":        { "un": 9003, "lat": -17.7751691, "lng": -63.1659191, "ciudad": "Santa Cruz" },
-  "GENEX IV":         { "un": 9004, "lat": -17.7901892, "lng": -63.1676007, "ciudad": "Santa Cruz" },
-  "GENEX V":          { "un": 9005, "lat": -17.8013275, "lng": -63.1920489, "ciudad": "Santa Cruz" },
-  "GENEX TROMPILLO":  { "un": 9006, "lat": -17.8071786, "lng": -63.1733412, "ciudad": "Santa Cruz" },
-  "GENEX MUTUALISTA": { "un": 9007, "lat": -17.7605013, "lng": -63.1604074, "ciudad": "Santa Cruz" },
-  "GENEX GUARACACHI": { "un": 9008, "lat": -17.7772405, "lng": -63.1424430, "ciudad": "Santa Cruz" },
-  "VANGAS":           { "un": 9009, "lat": -17.7775200, "lng": -63.2167309, "ciudad": "Santa Cruz" },
-  "JARAJORECHI":      { "un": 9010, "lat": -17.3194222, "lng": -63.2716316, "ciudad": "Montero" },
-  "ARACATACA":        { "un": 9011, "lat": -17.3286437, "lng": -63.2657400, "ciudad": "Montero" }
+  "_comment": "Registro estatico de estaciones Genex: nombre tal como lo publica la web -> un sintetico estable (9001+), coords y ciudad. Las coords son el PIN real del lugar (!3d!4d de la URL de Google Maps), NO el centro del viewport (/@...). Regenerar con: python genex.py --resolve-geo. Si la web publica una estacion nueva que no este aqui, el scraper la incluye sin geo y avisa por stderr para agregar su 'un' a mano.",
+  "GENEX I": {
+    "un": 9001,
+    "lat": -17.75771,
+    "lng": -63.1779,
+    "ciudad": "Santa Cruz"
+  },
+  "GENEX II": {
+    "un": 9002,
+    "lat": -17.7928321,
+    "lng": -63.1940059,
+    "ciudad": "Santa Cruz"
+  },
+  "GENEX III": {
+    "un": 9003,
+    "lat": -17.7751704,
+    "lng": -63.1652754,
+    "ciudad": "Santa Cruz"
+  },
+  "GENEX IV": {
+    "un": 9004,
+    "lat": -17.7901898,
+    "lng": -63.1649153,
+    "ciudad": "Santa Cruz"
+  },
+  "GENEX V": {
+    "un": 9005,
+    "lat": -17.8013326,
+    "lng": -63.189474,
+    "ciudad": "Santa Cruz"
+  },
+  "GENEX TROMPILLO": {
+    "un": 9006,
+    "lat": -17.8071837,
+    "lng": -63.1707663,
+    "ciudad": "Santa Cruz"
+  },
+  "GENEX MUTUALISTA": {
+    "un": 9007,
+    "lat": -17.7605064,
+    "lng": -63.1578325,
+    "ciudad": "Santa Cruz"
+  },
+  "GENEX GUARACACHI": {
+    "un": 9008,
+    "lat": -17.7772456,
+    "lng": -63.1398681,
+    "ciudad": "Santa Cruz"
+  },
+  "VANGAS": {
+    "un": 9009,
+    "lat": -17.7775673,
+    "lng": -63.2160147,
+    "ciudad": "Santa Cruz"
+  },
+  "JARAJORECHI": {
+    "un": 9010,
+    "lat": -17.3194273,
+    "lng": -63.2690567,
+    "ciudad": "Montero"
+  },
+  "ARACATACA": {
+    "un": 9011,
+    "lat": -17.3286488,
+    "lng": -63.2631651,
+    "ciudad": "Montero"
+  }
 }

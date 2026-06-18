@@ -110,6 +110,87 @@ def _search(pat, s):
     return m.group(1) if m else None
 
 
+# --------------------------- geocodificacion ---------------------------
+# El boton "ver mapa" de la web apunta a un short-link maps.app.goo.gl que
+# redirige a una URL de Google Maps con DOS coordenadas:
+#   /@<lat>,<lng>,<zoom>z   -> centro del VIEWPORT (NO es la estacion)
+#   ...!3d<lat>!4d<lng>...   -> PIN real del lugar  <-- esta es la buena
+# Tomar el viewport (error original) deja la estacion lejos de su sitio real
+# (p.ej. GENEX I "Cristo Redentor" caia a 2.7 km, dentro del 1er anillo).
+_GEO_PIN = re.compile(r"!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)")
+_GEO_VIEWPORT = re.compile(r"/@(-?\d+\.\d+),(-?\d+\.\d+)")
+_MAP_LINK = re.compile(r"""(https?://[^"' ]*?maps\.app\.goo\.gl[^"' ]*)""")
+
+
+def _resolve_pin(link, timeout=30):
+    """Sigue el redirect del short-link y devuelve (lat, lng) del PIN del lugar.
+    Cae al viewport solo si no hay pin (avisando). (None, None) si no resuelve."""
+    try:
+        final = urllib.request.build_opener().open(
+            urllib.request.Request(link, headers={"User-Agent": "Mozilla/5.0"}),
+            timeout=timeout).geturl()
+    except Exception as e:  # noqa: BLE001
+        print(f"GEO: no se pudo resolver {link}: {e}", file=sys.stderr)
+        return None, None
+    m = _GEO_PIN.search(final)
+    if m:
+        return float(m.group(1)), float(m.group(2))
+    m = _GEO_VIEWPORT.search(final)
+    if m:
+        print(f"GEO: {link} sin pin !3d!4d; uso viewport (revisar a mano)", file=sys.stderr)
+        return float(m.group(1)), float(m.group(2))
+    print(f"GEO: {link} sin coordenadas reconocibles.", file=sys.stderr)
+    return None, None
+
+
+def _station_links(html):
+    """Mapa nombre -> link de mapa, eligiendo por estacion el bloque que SI trae link."""
+    positions = [m.start() for m in re.finditer(r'class="station_name"', html)]
+    out = {}
+    for i, pos in enumerate(positions):
+        end = positions[i + 1] if i + 1 < len(positions) else min(pos + 6000, len(html))
+        block = html[pos - 300:end]
+        name = _clean(_search(r'station_name">(.*?)</span>', block))
+        if not name:
+            continue
+        m = _MAP_LINK.search(block)
+        if name not in out or (m and not out[name]):
+            out[name] = m.group(1) if m else None
+    return out
+
+
+def resolve_geo():
+    """Re-resuelve las coordenadas de cada estacion desde el link 'ver mapa' (PIN
+    real) y reescribe genex_stations.json, preservando un/ciudad/_comment.
+    Uso puntual (no en cada corrida del Action):  python genex.py --resolve-geo"""
+    with open(REGISTRY_PATH, encoding="utf-8") as f:
+        reg = json.load(f)
+    links = _station_links(fetch())
+    updated = 0
+    for nombre, link in sorted(links.items()):
+        if not link:
+            print(f"GEO: '{nombre}' sin link de mapa en la web.", file=sys.stderr)
+            continue
+        lat, lng = _resolve_pin(link)
+        if lat is None:
+            continue
+        entry = reg.get(nombre)
+        if entry is None:
+            print(f"GEO: '{nombre}' no esta en el registro; agregar 'un' a mano.",
+                  file=sys.stderr)
+            continue
+        old = (entry.get("lat"), entry.get("lng"))
+        entry["lat"], entry["lng"] = round(lat, 7), round(lng, 7)
+        new = (entry["lat"], entry["lng"])
+        if old != new:
+            updated += 1
+            print(f"GEO: {nombre}: {old} -> {new}")
+    with open(REGISTRY_PATH, "w", encoding="utf-8") as f:
+        json.dump(reg, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+    print(f"GEO: {updated} estaciones actualizadas en genex_stations.json")
+
+
 def _parse_products(block):
     out = []
     for pm in re.finditer(
@@ -165,6 +246,9 @@ def scrape():
 
 
 if __name__ == "__main__":
+    if "--resolve-geo" in sys.argv:
+        resolve_geo()
+        sys.exit(0)
     recs = scrape()
     print(f"GENEX: {len(recs)} records de {len(set(r['un'] for r in recs))} estaciones")
     for r in recs:
