@@ -68,9 +68,12 @@ def parse(html, producto_id):
 def parse_chunk(chunk, producto_id):
     m_un = re.search(r'\["un"\]=>\s*int\((\d+)\)', chunk)
     m_fecha = re.search(r'\["fecha"\]=>\s*string\(\d+\)\s*"([^"]+)"', chunk)
-    m_saldo = re.search(r'\["saldo"\]=>\s*string\(\d+\)\s*"(\d+)"', chunk)
+    # La fuente publica "saldo" a veces como string ("123") y a veces como int(123);
+    # aceptamos ambos para no romper si vuelve a cambiar de tipo.
+    m_saldo = re.search(r'\["saldo"\]=>\s*(?:string\(\d+\)\s*"(\d+)"|int\((\d+)\))', chunk)
     if not (m_un and m_saldo and m_fecha):
         return None
+    saldo = int(m_saldo.group(1) or m_saldo.group(2))
 
     def attr(label):
         m = re.search(re.escape(label) + r":\s*([0-9.]+)", chunk)
@@ -90,9 +93,9 @@ def parse_chunk(chunk, producto_id):
         "un": int(m_un.group(1)), "producto_id": int(producto_id),
         "producto": PRODUCTOS.get(producto_id, producto_id),
         "nombre": nombre, "direccion": direccion, "lat": lat, "lng": lng,
-        "fecha": m_fecha.group(1), "saldo": int(m_saldo.group(1)),
+        "fecha": m_fecha.group(1), "saldo": saldo,
         "mangueras": attr("mangueras"), "carga_promedio": carga,
-        "vehiculos": round(int(m_saldo.group(1)) / carga, 1),
+        "vehiculos": round(saldo / carga, 1),
         "tiempo_carga": attr("tiempo de carga por manguera"),
     }
 
