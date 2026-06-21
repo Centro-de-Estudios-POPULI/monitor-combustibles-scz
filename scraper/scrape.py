@@ -217,10 +217,19 @@ def main():
     for pid in BIO_PRODUCTOS:
         try:
             recs = parse(fetch(pid), pid)
+            # Cuando la fuente se "cae" deja de actualizar y publica un saldo CENTINELA
+            # idéntico para todas las estaciones (visto: int(1) / "1 Lts." con fechas
+            # congeladas). Un inventario real nunca es idéntico en 12-18 estaciones, así
+            # que descartamos ese lote para no contaminar la serie con datos falsos.
+            if recs and len({r["saldo"] for r in recs}) <= 1:
+                print(f"ADVERTENCIA: biopetrol producto {pid} devolvió saldo centinela "
+                      f"({recs[0]['saldo']}) idéntico en {len(recs)} estaciones; "
+                      f"se descarta (fuente caída).", file=sys.stderr)
+                recs = []
             print(f"biopetrol producto {pid} ({BIO_PRODUCTOS[pid]}): {len(recs)} estaciones")
             if not recs:
-                print(f"ADVERTENCIA: biopetrol producto {pid} devolvió 0 estaciones "
-                      f"(¿cambió el formato de la fuente?)", file=sys.stderr)
+                print(f"ADVERTENCIA: biopetrol producto {pid} sin datos válidos "
+                      f"(0 estaciones o lote centinela).", file=sys.stderr)
             for r in recs:
                 r["marca"] = "biopetrol"
                 r["ciudad"] = "Santa Cruz"
@@ -241,6 +250,24 @@ def main():
         records.extend(grecs)
     except Exception as e:  # noqa: BLE001
         print(f"ERROR genex: {e}", file=sys.stderr)
+
+    # ---- Carry-forward Biopetrol ----
+    # Si Biopetrol no entregó datos válidos (fuente caída / lote centinela), conservamos
+    # su último snapshot REAL desde latest.json, marcado como "dato viejo", para que las
+    # estaciones no desaparezcan del mapa ni se pisen con ceros. La serie/metrics no se
+    # tocan (siguen leyendo el histórico real); solo repoblamos el snapshot actual.
+    if not any(r.get("marca") == "biopetrol" for r in records):
+        prev = load_json("latest.json", {}).get("estaciones", [])
+        carried = 0
+        for e in prev:
+            if e.get("marca") == "biopetrol":
+                e = dict(e)
+                e["_carried"] = True
+                records.append(e)
+                carried += 1
+        if carried:
+            print(f"carry-forward biopetrol: {carried} estaciones del último snapshot real "
+                  f"(marcadas 'dato viejo')", file=sys.stderr)
 
     if not records:
         print("Sin datos de ninguna fuente; abortando para no pisar archivos.", file=sys.stderr)
@@ -268,7 +295,9 @@ def main():
 
     # ---- historico crudo ----
     migrate_old_history()
-    nuevos = append_measurements(records)
+    # Las estaciones carry-forward NO se escriben al histórico (su medición real ya está);
+    # solo sirven para repoblar el snapshot actual.
+    nuevos = append_measurements([r for r in records if not r.get("_carried")])
     print(f"mediciones nuevas: +{nuevos}")
     history = load_history()
 
@@ -316,7 +345,8 @@ def main():
             "lat": r["lat"], "lng": r["lng"], "fecha": r["fecha"],
             "saldo": r["saldo"], "vehiculos": r["vehiculos"],
             "mangueras": r["mangueras"], "estado": estado,
-            "eta_horas": m.get("eta_horas"), "stale": m.get("stale", False),
+            "eta_horas": m.get("eta_horas"),
+            "stale": True if r.get("_carried") else m.get("stale", False),
             "cola": r.get("cola"), "cola_nivel": r.get("cola_nivel"), "disp": r.get("disp"),
         })
     write_json("latest.json", {"actualizado": actualizado, "tz": "America/La_Paz (UTC-4)",
