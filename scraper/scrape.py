@@ -251,23 +251,27 @@ def main():
     except Exception as e:  # noqa: BLE001
         print(f"ERROR genex: {e}", file=sys.stderr)
 
-    # ---- Carry-forward Biopetrol ----
-    # Si Biopetrol no entregó datos válidos (fuente caída / lote centinela), conservamos
-    # su último snapshot REAL desde latest.json, marcado como "dato viejo", para que las
-    # estaciones no desaparezcan del mapa ni se pisen con ceros. La serie/metrics no se
-    # tocan (siguen leyendo el histórico real); solo repoblamos el snapshot actual.
-    if not any(r.get("marca") == "biopetrol" for r in records):
+    # ---- Carry-forward por marca ----
+    # Si una marca no entregó datos válidos este ciclo (fuente caída, lote centinela o
+    # blip transitorio de la web), conservamos su último snapshot REAL desde latest.json,
+    # marcado como "dato viejo", para que sus estaciones no desaparezcan del mapa ni se
+    # pisen con ceros. La serie/metrics no se tocan (siguen leyendo el histórico real);
+    # solo repoblamos el snapshot actual.
+    present = {r.get("marca") for r in records}
+    faltantes = [m for m in ("biopetrol", "genex") if m not in present]
+    if faltantes:
         prev = load_json("latest.json", {}).get("estaciones", [])
-        carried = 0
-        for e in prev:
-            if e.get("marca") == "biopetrol":
-                e = dict(e)
-                e["_carried"] = True
-                records.append(e)
-                carried += 1
-        if carried:
-            print(f"carry-forward biopetrol: {carried} estaciones del último snapshot real "
-                  f"(marcadas 'dato viejo')", file=sys.stderr)
+        for marca in faltantes:
+            carried = 0
+            for e in prev:
+                if e.get("marca") == marca:
+                    e = dict(e)
+                    e["_carried"] = True
+                    records.append(e)
+                    carried += 1
+            if carried:
+                print(f"carry-forward {marca}: {carried} estaciones del último snapshot "
+                      f"real (marcadas 'dato viejo')", file=sys.stderr)
 
     if not records:
         print("Sin datos de ninguna fuente; abortando para no pisar archivos.", file=sys.stderr)
