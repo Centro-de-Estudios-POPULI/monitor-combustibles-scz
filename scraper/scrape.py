@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Scraper + pipeline de indicadores de la Guia Biopetrol (saldos de combustible,
-Santa Cruz - Bolivia).
+Scraper + pipeline de indicadores del Monitor de Saldos de Combustible
+(Biopetrol + Genex, Santa Cruz - Bolivia).
 
-Fuente: http://ec2-3-22-240-207.us-east-2.compute.amazonaws.com/guiasaldos/main/donde/<producto_id>
-Productos con existencia: 134 = GASOLINA ESPECIAL, 132 = DIESEL.
+Fuentes (cada una en su propio adaptador, mismo esquema de record):
+  - biopetrol.py -> https://app9.biocloud.info/saldos/main/donde/<pid>
+  - genex.py     -> https://genex.com.bo/estaciones/...
+Productos: 134 = GASOLINA ESPECIAL, 132 = DIESEL, 200 = PREMIUM, 300 = GNV.
 
 Solo usa la libreria estandar (corre en GitHub Actions sin instalar nada).
 
@@ -21,17 +23,13 @@ Genera en docs/data:
 
 import json
 import os
-import re
 import sys
-import urllib.request
 from datetime import datetime, timedelta
 
 import metrics as M
 import genex
+import biopetrol
 
-BASE = "http://ec2-3-22-240-207.us-east-2.compute.amazonaws.com/guiasaldos/main/donde/"
-# Productos que publica Biopetrol (su fuente solo expone gasolina especial y diesel).
-BIO_PRODUCTOS = {"134": "GASOLINA ESPECIAL", "132": "DIESEL"}
 # Catalogo unificado del monitor (Biopetrol + Genex).
 #   134/132/200 se miden en litros (serie + semaforo completos).
 #   300 = GNV: la fuente solo da disponible/agotado (vista de disponibilidad, sin litros).
@@ -39,65 +37,18 @@ PRODUCTOS = {"134": "GASOLINA ESPECIAL", "132": "DIESEL",
              "200": "GASOLINA PREMIUM", "300": "GNV"}
 LITER_PRODUCTS = ("134", "132", "200")
 GNV_PID = 300
+# Una marca lleva "rancia" (outage silencioso que hay que gritar) si su ultimo dato
+# real supera estas horas. El carry-forward la mantiene visible mientras tanto.
+STALE_ALERT_H = 6
+# Tope de edad del carry-forward: una estacion que la fuente dejo de listar se conserva
+# como "dato viejo" hasta este limite; pasado eso se DESCARTA del mapa (mostrar litros
+# de hace dias es enganoso). Un blip de horas se tolera; un outage de dias, no.
+CARRY_MAX_H = 48
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.normpath(os.path.join(HERE, "..", "docs", "data"))
 HIST = os.path.join(DATA, "history")
 RECENT_HOURS = 72
-
-
-# --------------------------- fetch & parse ---------------------------
-def fetch(producto_id):
-    req = urllib.request.Request(BASE + producto_id,
-                                 headers={"User-Agent": "Mozilla/5.0 (combustibles-monitor)"})
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return r.read().decode("utf-8", errors="replace")
-
-
-def _num(s):
-    try:
-        return float(s)
-    except (TypeError, ValueError):
-        return None
-
-
-def parse(html, producto_id):
-    return [r for c in html.split("array(5) {")[1:] if (r := parse_chunk(c, producto_id))]
-
-
-def parse_chunk(chunk, producto_id):
-    m_un = re.search(r'\["un"\]=>\s*int\((\d+)\)', chunk)
-    m_fecha = re.search(r'\["fecha"\]=>\s*string\(\d+\)\s*"([^"]+)"', chunk)
-    # La fuente publica "saldo" a veces como string ("123") y a veces como int(123);
-    # aceptamos ambos para no romper si vuelve a cambiar de tipo.
-    m_saldo = re.search(r'\["saldo"\]=>\s*(?:string\(\d+\)\s*"(\d+)"|int\((\d+)\))', chunk)
-    if not (m_un and m_saldo and m_fecha):
-        return None
-    saldo = int(m_saldo.group(1) or m_saldo.group(2))
-
-    def attr(label):
-        m = re.search(re.escape(label) + r":\s*([0-9.]+)", chunk)
-        return _num(m.group(1)) if m else None
-
-    txt = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", chunk).replace("&nbsp;", " "))
-    m_name = re.search(r"cantidad de vehiculos:\s*[0-9.]+\s+(.+?)\s+Volumen disponible", txt)
-    nombre = m_name.group(1).strip() if m_name else f"UN-{m_un.group(1)}"
-    m_dir = re.search(r'class="px-1 col-12">([^<]+)</div>', chunk)
-    direccion = m_dir.group(1).strip() if m_dir else ""
-    m_geo = re.search(r"!2d(-?\d+\.\d+)!3d(-?\d+\.\d+)", chunk)
-    lng = _num(m_geo.group(1)) if m_geo else None
-    lat = _num(m_geo.group(2)) if m_geo else None
-
-    carga = attr("carga promedio") or M.CARGA_DEFAULT
-    return {
-        "un": int(m_un.group(1)), "producto_id": int(producto_id),
-        "producto": PRODUCTOS.get(producto_id, producto_id),
-        "nombre": nombre, "direccion": direccion, "lat": lat, "lng": lng,
-        "fecha": m_fecha.group(1), "saldo": saldo,
-        "mangueras": attr("mangueras"), "carga_promedio": carga,
-        "vehiculos": round(saldo / carga, 1),
-        "tiempo_carga": attr("tiempo de carga por manguera"),
-    }
 
 
 # --------------------------- io helpers ---------------------------
@@ -212,72 +163,63 @@ def main():
     os.makedirs(DATA, exist_ok=True)
 
     records = []
+    fresh_por_marca = {}          # marca -> nº de estaciones con dato FRESCO este ciclo
 
-    # ---- Biopetrol ----
-    for pid in BIO_PRODUCTOS:
+    # ---- Fuentes (cada adaptador devuelve records ya normalizados) ----
+    for marca, adapter in (("biopetrol", biopetrol.scrape), ("genex", genex.scrape)):
         try:
-            recs = parse(fetch(pid), pid)
-            # Cuando la fuente se "cae" deja de actualizar y publica un saldo CENTINELA
-            # idéntico para todas las estaciones (visto: int(1) / "1 Lts." con fechas
-            # congeladas). Un inventario real nunca es idéntico en 12-18 estaciones, así
-            # que descartamos ese lote para no contaminar la serie con datos falsos.
-            if recs and len({r["saldo"] for r in recs}) <= 1:
-                print(f"ADVERTENCIA: biopetrol producto {pid} devolvió saldo centinela "
-                      f"({recs[0]['saldo']}) idéntico en {len(recs)} estaciones; "
-                      f"se descarta (fuente caída).", file=sys.stderr)
-                recs = []
-            print(f"biopetrol producto {pid} ({BIO_PRODUCTOS[pid]}): {len(recs)} estaciones")
-            if not recs:
-                print(f"ADVERTENCIA: biopetrol producto {pid} sin datos válidos "
-                      f"(0 estaciones o lote centinela).", file=sys.stderr)
-            for r in recs:
-                r["marca"] = "biopetrol"
-                r["ciudad"] = "Santa Cruz"
-                r["cola"] = None
-                r["cola_nivel"] = None
-                r["disp"] = 1 if (r.get("saldo") or 0) > 0 else 0
-            records.extend(recs)
+            recs = adapter()
         except Exception as e:  # noqa: BLE001
-            print(f"ERROR biopetrol producto {pid}: {e}", file=sys.stderr)
+            print(f"ERROR {marca}: {e}", file=sys.stderr)
+            recs = []
+        est = len({(r["un"], r["producto_id"]) for r in recs})
+        fresh_por_marca[marca] = est
+        print(f"{marca}: {len(recs)} records de {len(set(r['un'] for r in recs))} estaciones")
+        if not recs:
+            print(f"ADVERTENCIA: {marca} devolvió 0 records "
+                  f"(fuente caída o cambio de formato).", file=sys.stderr)
+        records.extend(recs)
 
-    # ---- Genex ----
-    try:
-        grecs = genex.scrape()
-        print(f"genex: {len(grecs)} records de {len(set(r['un'] for r in grecs))} estaciones")
-        if not grecs:
-            print("ADVERTENCIA: genex devolvió 0 records (¿cambió el formato de la web?)",
-                  file=sys.stderr)
-        records.extend(grecs)
-    except Exception as e:  # noqa: BLE001
-        print(f"ERROR genex: {e}", file=sys.stderr)
-
-    # ---- Carry-forward por marca ----
-    # Si una marca no entregó datos válidos este ciclo (fuente caída, lote centinela o
-    # blip transitorio de la web), conservamos su último snapshot REAL desde latest.json,
-    # marcado como "dato viejo", para que sus estaciones no desaparezcan del mapa ni se
-    # pisen con ceros. La serie/metrics no se tocan (siguen leyendo el histórico real);
-    # solo repoblamos el snapshot actual.
-    present = {r.get("marca") for r in records}
-    faltantes = [m for m in ("biopetrol", "genex") if m not in present]
-    if faltantes:
-        prev = load_json("latest.json", {}).get("estaciones", [])
-        for marca in faltantes:
-            carried = 0
-            for e in prev:
-                if e.get("marca") == marca:
-                    e = dict(e)
-                    e["_carried"] = True
-                    records.append(e)
-                    carried += 1
-            if carried:
-                print(f"carry-forward {marca}: {carried} estaciones del último snapshot "
-                      f"real (marcadas 'dato viejo')", file=sys.stderr)
+    # ---- Carry-forward POR ESTACION ----
+    # Cualquier estacion (un,producto_id) que aparecio en el ultimo snapshot pero NO vino
+    # con dato valido este ciclo (fuente caida, blip, centinela, o que la fuente dejo de
+    # listarla por estar agotada) se conserva desde latest.json marcada como "dato viejo",
+    # para que no desaparezca del mapa ni se pise con ceros. La serie/metrics no se tocan
+    # (siguen leyendo el historico real); solo repoblamos el snapshot actual.
+    prev = load_json("latest.json", {}).get("estaciones", [])
+    presentes = {(r["un"], r["producto_id"]) for r in records}
+    # Reloj de referencia = dato mas fresco de este ciclo (aqui todo en records es fresco).
+    ref_fresh = M.parse_dt(max(r["fecha"] for r in records)) if records else None
+    carried_por_marca = {}
+    dropped = 0
+    for e in prev:
+        key = (e.get("un"), e.get("producto_id"))
+        if key in presentes:
+            continue
+        if ref_fresh is not None and e.get("fecha"):
+            age_h = (ref_fresh - M.parse_dt(e["fecha"])).total_seconds() / 3600
+            if age_h > CARRY_MAX_H:
+                dropped += 1          # demasiado viejo: se descarta (no se muestra litros rancios)
+                continue
+        e = dict(e)
+        e["_carried"] = True
+        records.append(e)
+        carried_por_marca[e.get("marca")] = carried_por_marca.get(e.get("marca"), 0) + 1
+    for marca, n in carried_por_marca.items():
+        print(f"carry-forward {marca}: {n} estaciones del último snapshot real "
+              f"(marcadas 'dato viejo')", file=sys.stderr)
+    if dropped:
+        print(f"descartadas {dropped} estaciones con carry-forward > {CARRY_MAX_H} h "
+              f"(dato demasiado viejo para mostrar)", file=sys.stderr)
 
     if not records:
         print("Sin datos de ninguna fuente; abortando para no pisar archivos.", file=sys.stderr)
         sys.exit(1)
 
-    actualizado = max(r["fecha"] for r in records)
+    # La marca de referencia para el reloj es la que trajo dato fresco (evita que un
+    # carry-forward viejo fije el 'actualizado' de toda la red hacia atras).
+    frescas = [r["fecha"] for r in records if not r.get("_carried")]
+    actualizado = max(frescas) if frescas else max(r["fecha"] for r in records)
 
     # ---- maestro geo ----
     stations = load_json("stations.json", {})
@@ -411,7 +353,38 @@ def main():
         "red": red, "estaciones": est_metrics, "indicadores": M.INDICADORES,
     })
 
-    print(f"OK actualizado={actualizado} | estaciones={len(estaciones)} | hist={len(history)}")
+    # ---- Health check: que un outage silencioso deje de enmascararse ----
+    # (Biopetrol estuvo 2 semanas caido y el job "pasaba" porque Genex si traia datos.)
+    # Reloj de referencia = dato mas fresco de la red; una marca esta en ALERTA si no
+    # trajo ninguna estacion fresca este ciclo o si su ultimo dato real supera el umbral.
+    ref = M.parse_dt(actualizado)
+    salud = {}
+    alertas = []
+    for marca in ("biopetrol", "genex"):
+        marca_recs = [r for r in records if r.get("marca") == marca]
+        if not marca_recs:
+            continue
+        last_real = max(r["fecha"] for r in marca_recs)
+        age_h = round((ref - M.parse_dt(last_real)).total_seconds() / 3600, 1)
+        fresh = fresh_por_marca.get(marca, 0)
+        alerta = fresh == 0 or age_h > STALE_ALERT_H
+        salud[marca] = {"estaciones_frescas": fresh, "ultimo_dato_real": last_real,
+                        "antiguedad_h": age_h, "alerta": alerta}
+        if alerta:
+            msg = (f"{marca.upper()} sin datos frescos: 0 estaciones este ciclo"
+                   if fresh == 0 else
+                   f"{marca.upper()} con dato rancio: ultimo real hace {age_h} h "
+                   f"({last_real}); mostrando 'dato viejo'")
+            alertas.append(msg)
+            # ::warning:: -> anotacion visible en la UI de GitHub Actions
+            print(f"::warning::{msg}")
+            print(f"ALERTA SALUD: {msg}", file=sys.stderr)
+    write_json("health.json", {"actualizado": actualizado, "tz": "America/La_Paz (UTC-4)",
+                               "umbral_alerta_h": STALE_ALERT_H, "marcas": salud,
+                               "alertas": alertas})
+
+    print(f"OK actualizado={actualizado} | estaciones={len(estaciones)} | "
+          f"hist={len(history)} | salud={ {m: v['alerta'] for m, v in salud.items()} }")
 
 
 if __name__ == "__main__":

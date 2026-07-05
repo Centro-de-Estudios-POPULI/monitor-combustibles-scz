@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
   <!-- ===== NAVBAR ===== -->
@@ -21,7 +21,7 @@
           <text x="92" y="87" font-family="'Playfair Display',Georgia,serif" font-size="55" font-weight="400" font-style="italic" letter-spacing="1" class="logo-opuli">opuli</text>
         </svg>
         <span class="nav-divider"></span>
-        <img src="upsa.svg?v=10" class="upsa-logo" alt="UPSA · Universidad Privada de Santa Cruz" />
+        <img src="upsa.svg?v=11" class="upsa-logo" alt="UPSA · Universidad Privada de Santa Cruz" />
       </div>
       <div class="nav-center">Monitor de Combustibles · Santa Cruz</div>
       <div class="nav-right">
@@ -42,7 +42,7 @@
       <h1>Monitor de Saldos de Combustible <em>· Santa Cruz</em></h1>
       <p class="hero-desc">Seguimiento en tiempo casi real de los saldos de combustible en las estaciones
         <b>Biopetrol</b> y <b>Genex</b> de Santa Cruz y Montero: gasolina especial, premium, diésel y GNV,
-        con mapa interactivo, indicadores de abastecimiento y series históricas. Actualizado cada 15 minutos.</p>
+        con mapa interactivo, indicadores de abastecimiento y series históricas. Actualizado cada 30 minutos.</p>
       <div class="hero-stats" id="hero-stats"></div>
     </div>
   </header>
@@ -73,6 +73,9 @@
   </div>
 
   <main class="wrap">
+    <!-- AVISO DE SALUD DE DATOS (una fuente sin datos frescos) -->
+    <div class="health-banner" id="health-banner" hidden></div>
+
     <!-- AYUDA / CÓMO USAR (descartable) -->
     <div class="help-banner" id="help-banner" hidden>
       <div class="help-text">
@@ -185,9 +188,9 @@
           <text x="92" y="87" font-family="'Playfair Display',Georgia,serif" font-size="55" font-weight="400" font-style="italic" letter-spacing="1" class="logo-opuli">opuli</text>
         </svg>
         <span class="nav-divider"></span>
-        <img src="upsa.svg?v=10" class="upsa-logo foot-upsa" alt="UPSA · Universidad Privada de Santa Cruz" />
+        <img src="upsa.svg?v=11" class="upsa-logo foot-upsa" alt="UPSA · Universidad Privada de Santa Cruz" />
       </div>
-      <p>Datos extraídos automáticamente de la Guía Biopetrol y del portal de estaciones Genex cada 15 minutos ·
+      <p>Datos extraídos automáticamente de la Guía Biopetrol y del portal de estaciones Genex cada 30 minutos ·
          Centro de Estudios POPULI · UPSA. Hora de Bolivia (UTC-4). Las estimaciones de autonomía, despacho y
          tiempo de agotamiento son aproximadas.</p>
     </div>
@@ -197,8 +200,8 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-  <script src="data.js?v=10"></script>
-  <script src="views.js?v=10"></script>
-  <script src="app.js?v=10"></script>
+  <script src="data.js?v=11"></script>
+  <script src="views.js?v=11"></script>
+  <script src="app.js?v=11"></script>
 </body>
 </html>

@@ -27,6 +27,7 @@ import json
 import os
 import re
 import sys
+import time
 import urllib.request
 from datetime import datetime
 
@@ -50,11 +51,23 @@ PRODUCTO_NOMBRE = {"134": "GASOLINA ESPECIAL", "132": "DIESEL",
 COLA_NIVEL = {"no hay cola": 0, "poca cola": 1, "hay cola": 2, "mucha cola": 3}
 
 
-def fetch():
-    req = urllib.request.Request(URL, headers={
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) combustibles-monitor"})
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return r.read().decode("utf-8", errors="replace")
+def fetch(retries=3, timeout=45, backoff=3):
+    """Descarga la web de GENEX con reintentos+backoff. Un blip transitorio
+    (timeout/WAF/5xx) en un solo intento hacia que TODA la marca entrara en
+    carry-forward y el monitor mostrara 'dato viejo' por 30 min; los reintentos
+    absorben ese parpadeo."""
+    last = None
+    for i in range(retries):
+        try:
+            req = urllib.request.Request(URL, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) combustibles-monitor"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.read().decode("utf-8", errors="replace")
+        except Exception as e:  # noqa: BLE001
+            last = e
+            if i < retries - 1:
+                time.sleep(backoff * (i + 1))
+    raise last
 
 
 def _clean(s):

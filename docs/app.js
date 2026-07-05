@@ -7,6 +7,25 @@ function setUpdated() {
   el.title = `${a} (${S.latest.tz || 'hora local'})`;
 }
 
+// Aviso visible cuando una fuente (Biopetrol/Genex) lleva rato sin datos frescos.
+// Lo alimenta health.json (generado por el scraper). Sin alertas => oculto.
+function renderHealth() {
+  const el = document.getElementById('health-banner');
+  if (!el) return;
+  const marcas = (S.health && S.health.marcas) || {};
+  const probs = Object.entries(marcas).filter(([, v]) => v && v.alerta);
+  if (!probs.length) { el.hidden = true; el.innerHTML = ''; return; }
+  const parts = probs.map(([m, v]) => {
+    const nombre = marcaLabel(m);
+    if (!v.estaciones_frescas) return `<b>${nombre}</b> sin datos en este momento`;
+    return `<b>${nombre}</b> sin actualizar desde hace ${Math.round(v.antiguedad_h)} h`;
+  });
+  el.innerHTML = `<span class="health-ic" aria-hidden="true">⚠</span>`
+    + `<div class="health-text">${parts.join(' · ')}. `
+    + `Se muestra el último dato disponible; puede estar desactualizado.</div>`;
+  el.hidden = false;
+}
+
 // ---- tema ----
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
@@ -77,6 +96,7 @@ async function boot() {
   initHelp();
   await loadData();
   setUpdated();
+  renderHealth();
   wire();
   renderAll();
   initScrollSpy();
@@ -89,7 +109,7 @@ async function boot() {
 
   // auto-refresco cada 5 minutos
   setInterval(async () => {
-    try { await loadData(); setUpdated(); renderAll(); } catch (e) {}
+    try { await loadData(); setUpdated(); renderHealth(); renderAll(); } catch (e) {}
   }, 5 * 60 * 1000);
 }
 

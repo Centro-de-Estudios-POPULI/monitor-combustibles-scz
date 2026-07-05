@@ -39,3 +39,19 @@ jobs:
             git commit -m "datos: snapshot $(date -u +'%Y-%m-%d %H:%M UTC')"
             git push
           fi
+
+      # Se ejecuta DESPUES del commit (los datos ya quedaron guardados): si una fuente
+      # lleva sin datos frescos mas del umbral, pone el run en ROJO -> GitHub notifica.
+      # Asi un outage/migracion de la fuente no vuelve a pasar semanas inadvertido.
+      - name: Verificar salud de datos
+        run: |
+          python - <<'PY'
+          import json, sys
+          h = json.load(open('docs/data/health.json'))
+          alertas = h.get('alertas') or []
+          if alertas:
+              for a in alertas:
+                  print(f"::error::{a}")
+              sys.exit(1)
+          print("Salud OK:", {m: v['alerta'] for m, v in h.get('marcas', {}).items()})
+          PY

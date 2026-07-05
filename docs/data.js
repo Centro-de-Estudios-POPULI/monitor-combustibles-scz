@@ -90,7 +90,9 @@ async function loadData() {
     j('latest.json'), j('metrics.json'), j('series_recent.json'),
     j('red_series.json'), j('stock_stacked.json'), j('heatmap.json'), j('daily.json'),
   ]);
-  Object.assign(S, { latest, metrics, series, redSeries, stacked, heatmap, daily });
+  // health.json es opcional (deploys viejos no lo tienen): no debe romper la carga.
+  const health = await j('health.json').catch(() => null);
+  Object.assign(S, { latest, metrics, series, redSeries, stacked, heatmap, daily, health });
 }
 
 // ---- tooltips de los iconos (i): hover en desktop, tap en móvil ----

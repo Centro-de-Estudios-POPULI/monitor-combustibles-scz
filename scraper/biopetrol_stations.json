@@ -1,0 +1,117 @@
+{
+  "_comment": "Registro estatico Biopetrol: nombre exacto en la web -> un sintetico estable (preserva el historico) + geo/ciudad de respaldo. La fuente app9.biocloud.info ya no expone un numerico; el nombre es la llave. Estaciones nuevas: agregar aqui con un nuevo un (no reutilizar).",
+  "ALEMANA": {
+    "un": 100,
+    "ciudad": "Santa Cruz",
+    "lat": -17.76961441344113,
+    "lng": -63.171489567031514
+  },
+  "CHACO": {
+    "un": 105,
+    "ciudad": "Santa Cruz",
+    "lat": -17.782627398322152,
+    "lng": -63.1640577245945
+  },
+  "ROYAL": {
+    "un": 110,
+    "ciudad": "Santa Cruz",
+    "lat": -17.806838656054467,
+    "lng": -63.19809720933443
+  },
+  "EQUIPETROL": {
+    "un": 115,
+    "ciudad": "Santa Cruz",
+    "lat": -17.754924145146543,
+    "lng": -63.19696908352364
+  },
+  "PARAGUA": {
+    "un": 120,
+    "ciudad": "Santa Cruz",
+    "lat": -17.76461590711055,
+    "lng": -63.15063065445854
+  },
+  "LUCYFER": {
+    "un": 125,
+    "ciudad": "Santa Cruz",
+    "lat": null,
+    "lng": null
+  },
+  "MONTECRISTO": {
+    "un": 135,
+    "ciudad": "Santa Cruz",
+    "lat": -17.766963876158112,
+    "lng": -63.110905455946146
+  },
+  "SUR CENTRAL": {
+    "un": 200,
+    "ciudad": "Santa Cruz",
+    "lat": -17.801036539769974,
+    "lng": -63.18120769345767
+  },
+  "BENI": {
+    "un": 205,
+    "ciudad": "Santa Cruz",
+    "lat": -17.769963684221935,
+    "lng": -63.178899730929984
+  },
+  "LOPEZ": {
+    "un": 210,
+    "ciudad": "Santa Cruz",
+    "lat": -17.72643487504358,
+    "lng": -63.16585486172886
+  },
+  "VIRU VIRU": {
+    "un": 215,
+    "ciudad": "Santa Cruz",
+    "lat": -17.67610976467808,
+    "lng": -63.15916032775997
+  },
+  "LA TECA": {
+    "un": 225,
+    "ciudad": "Santa Cruz",
+    "lat": -17.765680463066985,
+    "lng": -63.070928674378365
+  },
+  "MONTEVERDE": {
+    "un": 230,
+    "ciudad": "Santa Cruz",
+    "lat": -17.34261560414829,
+    "lng": -63.26969423672176
+  },
+  "PIRAI": {
+    "un": 300,
+    "ciudad": "Santa Cruz",
+    "lat": -17.78616441888315,
+    "lng": -63.204842686280244
+  },
+  "CABEZAS": {
+    "un": 305,
+    "ciudad": "Santa Cruz",
+    "lat": -18.78790161693799,
+    "lng": -63.31446054798644
+  },
+  "PARAPETI": {
+    "un": 310,
+    "ciudad": "Santa Cruz",
+    "lat": -20.022953850434444,
+    "lng": -63.53283530848966
+  },
+  "BEREA": {
+    "un": 315,
+    "ciudad": "Santa Cruz",
+    "lat": -17.838166685239372,
+    "lng": -63.241045083357406
+  },
+  "GASCO": {
+    "un": 400,
+    "ciudad": "Santa Cruz",
+    "lat": -17.76206142881603,
+    "lng": -63.18013670706179
+  },
+  "CEDENO": {
+    "un": 405,
+    "ciudad": "Santa Cruz",
+    "lat": -20.021236674057743,
+    "lng": -63.531306466384734
+  }
+}
