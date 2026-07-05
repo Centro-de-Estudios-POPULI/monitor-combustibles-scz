@@ -2,7 +2,7 @@
 
 Scraper + **dashboard de indicadores** que monitorea los **saldos de combustible** de las
 redes **Biopetrol** y **Genex** en Santa Cruz y Montero, Bolivia, con **georreferencia**:
-gasolina especial, gasolina premium, diésel y GNV. Los datos se extraen **cada 15 minutos**,
+gasolina especial, gasolina premium, diésel y GNV. Los datos se extraen **cada 30 minutos**,
 se almacenan y se publican en un dashboard navegable con mapa, series temporales e
 indicadores derivados, con **filtro de marca** y vista unificada de ambas redes.
 
@@ -14,13 +14,23 @@ indicadores derivados, con **filtro de marca** y vista unificada de ambas redes.
 
 El monitor unifica dos redes (campo `marca` en todos los datos):
 
-- **Biopetrol** — `http://ec2-3-22-240-207.us-east-2.compute.amazonaws.com/guiasaldos/main/donde/<producto_id>`
-  (solo HTTP) · `134` = Gasolina Especial, `132` = Diésel. Trae mangueras, carga promedio y
-  georreferencia embebida.
+- **Biopetrol** — `https://app9.biocloud.info/saldos/main/donde/<producto_id>`
+  (HTTPS) · `134` = Gasolina Especial, `132` = Diésel. Página de tarjetas renderizada en
+  servidor; trae saldo, autonomía en vehículos, tiempo de cola, dirección y georreferencia.
+  **No publica un id numérico**: las estaciones se mapean por **nombre** a un `un` sintético
+  estable en `scraper/biopetrol_stations.json` (preserva el histórico). Solo lista las
+  estaciones con stock en el momento.
+  <br>_(Hasta 2026-07 la fuente vivía en un host EC2 con otro formato; migró — ver la receta
+  de migración más abajo.)_
 - **Genex** — `https://genex.com.bo/estaciones/...` (tabla WooCommerce renderizada en servidor).
   Productos: gasolina especial, **premium** (`200`), diésel y **GNV** (`300`). Aporta además la
   **cola de vehículos** reportada. No publica mangueras ni coordenadas: las estaciones se
   resuelven una vez a `scraper/genex_stations.json` (`un` sintético + lat/lng + ciudad).
+
+Cada adaptador (`biopetrol.py`, `genex.py`) es **autónomo** y devuelve el mismo esquema de
+record; `scrape.py` solo los orquesta. Si una fuente no entrega datos válidos en un ciclo, se
+conserva su último snapshot real como *dato viejo* (**carry-forward** por estación, con tope de
+48 h) y se registra en `docs/data/health.json` para alertar (ver *Salud y alertas*).
 
 Productos internos: `134` especial, `132` diésel, `200` premium (litros), `300` GNV
 (solo disponible/agotado, sin litros → vista de disponibilidad). Por estación se captura:
@@ -43,10 +53,12 @@ sección *Metodología* del dashboard):
 
 ```
 scraper/
-  scrape.py            Orquesta ambas fuentes + parse + almacenamiento + genera todos los JSON
-  genex.py             Adaptador de la red Genex (fetch HTTPS + parse de la tabla)
-  genex_stations.json  Registro estático de estaciones Genex (un sintético, lat/lng, ciudad)
-  metrics.py           Motor de indicadores (funciones puras, solo stdlib)
+  scrape.py                Orquesta ambas fuentes + carry-forward + almacenamiento + genera los JSON
+  biopetrol.py             Adaptador de la red Biopetrol (fetch HTTPS + parse de tarjetas)
+  biopetrol_stations.json  Registro estático Biopetrol: nombre → un sintético + lat/lng + ciudad
+  genex.py                 Adaptador de la red Genex (fetch HTTPS + parse de la tabla)
+  genex_stations.json      Registro estático Genex (un sintético, lat/lng, ciudad)
+  metrics.py               Motor de indicadores (funciones puras, solo stdlib)
 docs/              Dashboard (GitHub Pages, source = /docs)
   index.html  style.css  data.js  views.js  app.js
   data/
@@ -57,8 +69,9 @@ docs/              Dashboard (GitHub Pages, source = /docs)
     heatmap.json       patrón hora × día
     daily.json         resúmenes diarios
     stations.json      maestro geo
+    health.json        salud por marca (frescura, antigüedad, alertas)
     history/YYYY-MM-DD.jsonl   histórico crudo particionado por día
-.github/workflows/scrape.yml   cron cada 15 min: corre el scraper y commitea los datos
+.github/workflows/scrape.yml   cron cada 30 min: corre el scraper, commitea los datos y verifica salud
 ```
 
 ## Dashboard (5 secciones)
@@ -86,9 +99,51 @@ python -m http.server -d docs 8000  # http://localhost:8000
 
 ## Automatización
 
-El Action `scrape.yml` corre **cada 15 minutos** (UTC), ejecuta el scraper y commitea los
-datos. El histórico se deduplica por medición real (un+producto+fecha). Pages se actualiza
-solo. Se puede lanzar a mano desde **Actions → Run workflow**.
+El Action `scrape.yml` corre **cada 30 minutos**, ejecuta el scraper, commitea los datos
+(con reintentos + `pull --rebase` para no chocar con runs solapados) y verifica la salud.
+El histórico se deduplica por medición real (un+producto+fecha). Pages se actualiza solo.
+Se puede lanzar a mano desde **Actions → Run workflow**.
+
+> El cron nativo de GitHub es poco fiable; el disparo real lo hace un **pinger externo**
+> (cron-job.org → `workflow_dispatch`) cada 30 min. El cron del YAML queda como respaldo.
+> ⏰ El PAT del pinger vence ~2026-09-01: regenerarlo antes o el monitor deja de actualizarse.
+
+## Salud y alertas
+
+Cada corrida escribe `docs/data/health.json` con, por marca, cuántas estaciones vinieron
+frescas, la antigüedad del último dato real y si está en **alerta** (último dato real de más de
+6 h → outage probable). El paso *Verificar salud de datos* del Action pone el run en **rojo**
+(→ notificación de GitHub) cuando hay alerta, **después** de commitear los datos. El dashboard
+muestra además un **banner** de aviso leyendo ese archivo. Así un outage o una migración de la
+fuente se detecta en horas, no en semanas.
+
+## Receta: si una fuente migra o cambia de formato
+
+Es lo que pasó con Biopetrol en 2026-07 (cambió de host EC2 a `app9.biocloud.info` y de
+formato). Señales típicas: el banner/`health.json` marca una marca en alerta, o sus estaciones
+quedan congeladas como *dato viejo*. Pasos para repararlo (toca **un solo adaptador**):
+
+1. **Conseguir la URL nueva** de la fuente (abrir su página en el navegador) y ver el HTML/JSON
+   que sirve hoy.
+2. **Actualizar el adaptador** de esa marca (`scraper/biopetrol.py` o `scraper/genex.py`):
+   la URL base arriba y el parser (regex/estructura) según el formato nuevo. Cada adaptador es
+   autónomo y devuelve el mismo esquema de record, así que no hay que tocar `scrape.py`.
+3. **Mapear los nombres** de estación a los `un` **ya existentes** en su registro
+   (`*_stations.json`) para **no romper el histórico** (indexado por `un`+producto). Estaciones
+   nuevas: agregarlas con un `un` nuevo (no reutilizar). El scraper avisa por stderr si ve una
+   estación que no está en el registro.
+4. **Probar local**: `python scraper/biopetrol.py` (o `genex.py`) imprime lo que extrae; luego
+   `python scraper/scrape.py` regenera todo y `health.json` debe quedar sin alertas.
+5. **Push**. Si el repo local está atrasado, `git pull --rebase` antes (no toca `scraper/`).
+
+Para no perder la carrera contra el scheduler al pushear a mano:
+`gh workflow disable scrape.yml` → trabajar → push → `gh workflow enable scrape.yml`.
+
+**Huecos en el histórico:** un período sin datos se muestra como **hueco** en las series (las
+series de red no arrastran un valor congelado más de 6 h). Para rellenarlo si se consiguen los
+datos, agregar las mediciones a `docs/data/history/YYYY-MM-DD.jsonl`
+(`{"un","producto_id","fecha","saldo","vehiculos"}`, un objeto por línea) y el pipeline las
+incorpora al regenerar.
 
 ## Notas
 
