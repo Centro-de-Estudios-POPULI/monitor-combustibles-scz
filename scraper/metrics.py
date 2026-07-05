@@ -24,6 +24,10 @@ REFILL_MIN_FRAC = 0.15        # ...y ademas >= 15% del saldo previo
 DESPACHO_WINDOW_H = 3.0       # ventana para promediar la tasa de despacho
 MAX_GAP_H = 3.0              # huecos mayores se ignoran para tasas (poco fiables)
 STALE_MIN = 45               # sensor "viejo" si su ultima medicion es 45+ min mas vieja que la red
+# Tope de forward-fill en las series de red: no arrastrar el ultimo valor de una estacion
+# a traves de huecos mayores a esto (si no reporto en >6 h, se deja HUECO en vez de
+# fingir stock plano con un dato congelado de dias atras). Se rellena solo al backfillear.
+FF_MAX = timedelta(hours=6)
 
 
 def parse_dt(s):
@@ -181,15 +185,17 @@ def network_series(grouped, pid, max_days=14, bucket_min=60):
         b_end = b + step
         stock = n_con = n_crit = n_seca = n_total = 0
         for un, pts in stations.items():
-            # ultima medicion <= fin del bucket
+            # ultima medicion <= fin del bucket, sin arrastrar dato mas viejo que FF_MAX
             val = None
+            val_dt = None
             for dt, s, v in pts:
                 if dt <= b_end:
                     val = (s, v)
+                    val_dt = dt
                 else:
                     break
-            if val is None:
-                continue
+            if val is None or (b_end - val_dt) > FF_MAX:
+                continue          # sin dato reciente: la estacion no cuenta en este bucket (hueco)
             s, v = val
             carga = CARGA_DEFAULT
             veh = v if v is not None else s / carga
@@ -232,12 +238,19 @@ def stacked_series(grouped, pid, stations_meta, max_days=7, bucket_min=60):
         for b in buckets:
             b_end = b + step
             val = None
+            val_dt = None
             for dt, s, _ in pts:
                 if dt <= b_end:
                     val = s
+                    val_dt = dt
                 else:
                     break
-            data.append(val if val is not None else 0)
+            if val is None:
+                data.append(0)                   # antes de la primera medicion de la estacion
+            elif (b_end - val_dt) > FF_MAX:
+                data.append(None)                # hueco: no arrastrar litros congelados de dias atras
+            else:
+                data.append(val)
         meta = stations_meta.get(str(un), {})
         series.append({"un": un, "nombre": meta.get("nombre", f"UN-{un}"),
                        "marca": meta.get("marca"), "data": data})
