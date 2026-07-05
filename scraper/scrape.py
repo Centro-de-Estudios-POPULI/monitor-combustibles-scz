@@ -367,13 +367,15 @@ def main():
         last_real = max(r["fecha"] for r in marca_recs)
         age_h = round((ref - M.parse_dt(last_real)).total_seconds() / 3600, 1)
         fresh = fresh_por_marca.get(marca, 0)
-        alerta = fresh == 0 or age_h > STALE_ALERT_H
+        # Alerta SOLO por antiguedad sostenida (>umbral), no por un ciclo suelto en 0:
+        # un blip (fuente devuelve 0 este ciclo) lo cubre el carry-forward y su ultimo
+        # dato real sigue reciente -> age_h chico -> sin falsa alarma. Solo un outage
+        # real (fuente caida/migrada) hace crecer age_h por encima del umbral.
+        alerta = age_h > STALE_ALERT_H
         salud[marca] = {"estaciones_frescas": fresh, "ultimo_dato_real": last_real,
                         "antiguedad_h": age_h, "alerta": alerta}
         if alerta:
-            msg = (f"{marca.upper()} sin datos frescos: 0 estaciones este ciclo"
-                   if fresh == 0 else
-                   f"{marca.upper()} con dato rancio: ultimo real hace {age_h} h "
+            msg = (f"{marca.upper()} con dato rancio: ultimo real hace {age_h} h "
                    f"({last_real}); mostrando 'dato viejo'")
             alertas.append(msg)
             # ::warning:: -> anotacion visible en la UI de GitHub Actions
