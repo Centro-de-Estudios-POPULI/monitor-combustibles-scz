@@ -2036,3 +2036,14 @@
 {"un": 9010, "producto_id": 200, "fecha": "2026-08-02 20:01:00", "saldo": 0, "vehiculos": 0.0}
 {"un": 9010, "producto_id": 132, "fecha": "2026-08-02 20:01:00", "saldo": 0, "vehiculos": 0.0}
 {"un": 9010, "producto_id": 300, "fecha": "2026-08-02 20:01:00", "saldo": null, "vehiculos": null}
+{"un": 100, "producto_id": 134, "fecha": "2026-08-02 20:16:00", "saldo": 2755, "vehiculos": 69}
+{"un": 205, "producto_id": 134, "fecha": "2026-08-02 20:16:00", "saldo": 10316, "vehiculos": 258}
+{"un": 315, "producto_id": 134, "fecha": "2026-08-02 20:16:00", "saldo": 1879, "vehiculos": 47}
+{"un": 305, "producto_id": 134, "fecha": "2026-08-02 20:16:00", "saldo": 1716, "vehiculos": 43}
+{"un": 405, "producto_id": 134, "fecha": "2026-08-02 20:16:00", "saldo": 5200, "vehiculos": 130}
+{"un": 105, "producto_id": 134, "fecha": "2026-08-02 20:16:00", "saldo": 14413, "vehiculos": 360}
+{"un": 400, "producto_id": 134, "fecha": "2026-08-02 20:16:00", "saldo": 8017, "vehiculos": 200}
+{"un": 125, "producto_id": 134, "fecha": "2026-08-02 20:16:00", "saldo": 18296, "vehiculos": 457}
+{"un": 135, "producto_id": 134, "fecha": "2026-08-02 20:16:00", "saldo": 939, "vehiculos": 23}
+{"un": 310, "producto_id": 134, "fecha": "2026-08-02 20:16:00", "saldo": 12488, "vehiculos": 312}
+{"un": 110, "producto_id": 134, "fecha": "2026-08-02 20:16:00", "saldo": 821, "vehiculos": 21}
