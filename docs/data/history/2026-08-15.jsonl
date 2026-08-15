@@ -810,3 +810,5 @@
 {"un": 310, "producto_id": 134, "fecha": "2026-08-15 11:46:00", "saldo": 13216, "vehiculos": 330}
 {"un": 315, "producto_id": 134, "fecha": "2026-08-15 12:16:00", "saldo": 178, "vehiculos": 4}
 {"un": 310, "producto_id": 134, "fecha": "2026-08-15 12:16:00", "saldo": 12969, "vehiculos": 324}
+{"un": 315, "producto_id": 134, "fecha": "2026-08-15 12:31:00", "saldo": 24, "vehiculos": 1}
+{"un": 310, "producto_id": 134, "fecha": "2026-08-15 12:31:00", "saldo": 12842, "vehiculos": 321}
